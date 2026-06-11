@@ -1,0 +1,11 @@
+{
+  "name": "campus-lost-and-found",
+  "version": "1.0.0",
+  "description": "Campus Lost and Found Portal",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p $PORT"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

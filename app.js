@@ -1,10 +1,11 @@
 // ================= EMAIL & NOTIFICATION SETTINGS =================
 // Replace placeholders with your EmailJS credentials once you create an account
 const EMAIL_CONFIG = {
-    PUBLIC_KEY: "",     // Insert your EmailJS Public Key here (e.g. "user_abcdef...")
-    SERVICE_ID: "",     // Insert your EmailJS Service ID here (e.g. "service_123...")
-    TEMPLATE_ID: "",    // Insert your EmailJS Template ID here (e.g. "template_abc...")
+    PUBLIC_KEY: "Pvt0caTc5SKSnR4IT",     // Insert your EmailJS Public Key here (e.g. "user_abcdef...")
+    SERVICE_ID: "service_9y2mcgh",     // Insert your EmailJS Service ID here (e.g. "service_123...")
+    TEMPLATE_ID: "template_bnrmz3n",   // Insert your EmailJS Template ID here (e.g. "template_abc...")
 };
+
 
 /**
  * Sends a welcome email to the registered user.
@@ -18,6 +19,7 @@ async function sendWelcomeEmail(user) {
     const templateParams = {
         user_name: user.name,
         user_email: user.email,
+        login_url: window.location.origin || "http://127.0.0.1:8080",
         reply_to: "no-reply@campuslf.edu"
     };
 
@@ -29,9 +31,9 @@ async function sendWelcomeEmail(user) {
         console.log("Configure EmailJS in app.js with your credentials to send live emails.");
         
         // Let the user know with an informative Toast too
-        setTimeout(() => {
-            showToast(`[Mock Email] Welcome email sent to ${user.email} (configured in dev console)`, "info");
-        }, 1500);
+        // setTimeout(() => {
+        //     showToast(`[Mock Email] Welcome email sent to ${user.email} (configured in dev console)`, "info");
+        // }, 1500);
         return;
     }
 
@@ -52,7 +54,7 @@ async function sendWelcomeEmail(user) {
             templateParams
         );
         console.log("EmailJS Success:", response.status, response.text);
-        showToast(`Welcome email sent successfully to ${user.email}!`, "success");
+        // showToast(`Welcome email sent successfully to ${user.email}!`, "success");
     } catch (error) {
         console.error("EmailJS Error:", error);
         showToast("Welcome email failed to send. Check console for details.", "error");
