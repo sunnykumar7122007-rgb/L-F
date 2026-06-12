@@ -580,8 +580,11 @@
                         <div class="table-header">
                             <div>
                                 <h2>Registered Accounts</h2>
-                                <p>Manage campus account credentials, roles, and access permissions</p>
+                                <p>Manage campus accounts, roles, and access permissions</p>
                             </div>
+                            <span id="supabase-sync-badge" class="sync-badge sync-pending">
+                                <i class="fa-solid fa-rotate fa-spin" style="font-size:0.65rem;"></i> Connecting…
+                            </span>
                         </div>
 
                         <div class="table-responsive">
@@ -590,9 +593,9 @@
                                     <tr>
                                         <th>Name</th>
                                         <th>Email Address</th>
-                                        <th>Password</th>
                                         <th>Role</th>
                                         <th>Status</th>
+                                        <th>Registered</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -694,8 +697,12 @@
     <!-- Custom Toast Notification System -->
     <div id="toast-container" class="toast-container"></div>
 
+    <!-- Supabase JS SDK (user account cloud sync) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js?v=1"></script>
     <!-- Main Logic Script -->
     <script src="db.js?v=4"></script>
+    <script src="email.js?v=4"></script>
     <script src="app.js?v=4"></script>
 </body>
 

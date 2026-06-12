@@ -1,65 +1,5 @@
 // ================= EMAIL & NOTIFICATION SETTINGS =================
-// Replace placeholders with your EmailJS credentials once you create an account
-const EMAIL_CONFIG = {
-    PUBLIC_KEY: "Pvt0caTc5SKSnR4IT",     // Insert your EmailJS Public Key here (e.g. "user_abcdef...")
-    SERVICE_ID: "service_9y2mcgh",     // Insert your EmailJS Service ID here (e.g. "service_123...")
-    TEMPLATE_ID: "template_bnrmz3n",   // Insert your EmailJS Template ID here (e.g. "template_abc...")
-};
-
-
-/**
- * Sends a welcome email to the registered user.
- * If credentials are not yet configured, runs in mock mode.
- * @param {Object} user - The registered user details
- */
-async function sendWelcomeEmail(user) {
-    const isConfigured = EMAIL_CONFIG.PUBLIC_KEY && EMAIL_CONFIG.SERVICE_ID && EMAIL_CONFIG.TEMPLATE_ID;
-
-    // Template parameters matching variables in EmailJS template
-    const templateParams = {
-        user_name: user.name,
-        user_email: user.email,
-        login_url: window.location.origin || "http://127.0.0.1:8080",
-        reply_to: "no-reply@campuslf.edu"
-    };
-
-    if (!isConfigured) {
-        console.log("%c[Mock Email Sent]", "color: #a855f7; font-weight: bold; font-size: 1.2em;");
-        console.log(`To: ${user.name} <${user.email}>`);
-        console.log("Subject: Welcome to Campus Lost & Found!");
-        console.log("Body: Hi " + user.name + ",\nWelcome to Campus Lost & Found! Your account has been registered successfully. You can now report lost or found items and connect with other members.");
-        console.log("Configure EmailJS in app.js with your credentials to send live emails.");
-        
-        // Let the user know with an informative Toast too
-        // setTimeout(() => {
-        //     showToast(`[Mock Email] Welcome email sent to ${user.email} (configured in dev console)`, "info");
-        // }, 1500);
-        return;
-    }
-
-    try {
-        if (typeof emailjs === 'undefined') {
-            throw new Error("EmailJS SDK failed to load. Ensure index.html includes the CDN script.");
-        }
-        
-        // Initialize EmailJS with Public Key
-        emailjs.init({
-            publicKey: EMAIL_CONFIG.PUBLIC_KEY,
-        });
-
-        // Send Email
-        const response = await emailjs.send(
-            EMAIL_CONFIG.SERVICE_ID,
-            EMAIL_CONFIG.TEMPLATE_ID,
-            templateParams
-        );
-        console.log("EmailJS Success:", response.status, response.text);
-        // showToast(`Welcome email sent successfully to ${user.email}!`, "success");
-    } catch (error) {
-        console.error("EmailJS Error:", error);
-        showToast("Welcome email failed to send. Check console for details.", "error");
-    }
-}
+// Email configuration and sendWelcomeEmail() are defined in email.js
 
 // ================= DATA SEED & INITIALIZATION =================
 const DEFAULT_USERS = [
@@ -171,6 +111,10 @@ async function saveUser(user) {
         await dbManager.put("users", user);
     }
     localStorage.setItem("lf_users", JSON.stringify(users));
+    // Sync profile (no password) to Supabase cloud
+    if (typeof supabaseDB !== 'undefined' && supabaseDB.isReady) {
+        supabaseDB.put(user).catch(e => console.error('[Supabase] saveUser sync error:', e));
+    }
 }
 
 async function saveItem(item) {
@@ -250,6 +194,85 @@ async function initDatabaseData() {
     localStorage.setItem("lf_conversations", JSON.stringify(conversations));
 }
 
+// ================= SUPABASE CLOUD SYNC =================
+
+/**
+ * Merges Supabase user records into the local users array.
+ * - Remote-only users are added locally (role/status preserved, no password).
+ * - Local-only users are pushed up to Supabase.
+ * - Remote role/suspended values win on conflict (admin edits persist across devices).
+ */
+async function syncUsersFromSupabase() {
+    try {
+        const remoteUsers = await supabaseDB.getAll();
+        let changed = false;
+
+        // Pull: apply remote users into local store
+        for (const remote of remoteUsers) {
+            const local = users.find(u => u.email === remote.email);
+            if (!local) {
+                // New user from another device / direct DB insert
+                users.push({
+                    email:     remote.email,
+                    name:      remote.name,
+                    password:  '', // no password from cloud — local auth only
+                    role:      remote.role,
+                    suspended: remote.suspended,
+                    createdAt: remote.createdAt
+                });
+                changed = true;
+            } else {
+                // Sync role/suspended from cloud (admin changes persist)
+                if (local.role !== remote.role || local.suspended !== remote.suspended) {
+                    local.role = remote.role;
+                    local.suspended = remote.suspended;
+                    changed = true;
+                }
+                // Backfill createdAt if missing locally
+                if (!local.createdAt && remote.createdAt) {
+                    local.createdAt = remote.createdAt;
+                    changed = true;
+                }
+            }
+        }
+
+        // Push: upload local users not yet in Supabase
+        for (const local of users) {
+            const inRemote = remoteUsers.find(r => r.email === local.email);
+            if (!inRemote) {
+                supabaseDB.put(local).catch(e => console.error('[Supabase] push error:', e));
+            }
+        }
+
+        if (changed) {
+            localStorage.setItem('lf_users', JSON.stringify(users));
+            // Refresh User Details panel if currently open
+            const activeTab = document.querySelector('.tab-content.active-tab');
+            if (activeTab && activeTab.id === 'tab-admin-users') renderAdminUsers();
+        }
+
+        updateSupabaseSyncBadge(true);
+        console.log('[Supabase] User sync complete. Remote:', remoteUsers.length, '| Local:', users.length);
+    } catch (err) {
+        console.error('[Supabase] Sync failed:', err);
+        updateSupabaseSyncBadge(false);
+    }
+}
+
+/**
+ * Updates the sync status badge shown in the User Details admin panel.
+ */
+function updateSupabaseSyncBadge(isConnected) {
+    const badge = document.getElementById('supabase-sync-badge');
+    if (!badge) return;
+    if (isConnected) {
+        badge.innerHTML = '<i class="fa-solid fa-circle" style="color:#10b981;font-size:0.55rem;"></i> Synced with Supabase';
+        badge.className = 'sync-badge sync-online';
+    } else {
+        badge.innerHTML = '<i class="fa-solid fa-circle" style="color:#f43f5e;font-size:0.55rem;"></i> Local Only';
+        badge.className = 'sync-badge sync-offline';
+    }
+}
 
 // ================= LIFECYCLE & ROUTING =================
 document.addEventListener("DOMContentLoaded", async () => {
@@ -268,6 +291,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         conversations = JSON.parse(localStorage.getItem("lf_conversations")) || [];
     }
     
+    // Initialize Supabase and sync user accounts (non-blocking — app continues regardless)
+    supabaseDB.init().then(ready => {
+        updateSupabaseSyncBadge(ready);
+        if (ready) syncUsersFromSupabase();
+    });
+
     checkSession();
     setupDragAndDrop();
 });
@@ -644,7 +673,7 @@ function handleSignup(event) {
     }
     
     // Created accounts are always 'user' role
-    const newUser = { name, email, password, role: 'user' };
+    const newUser = { name, email, password, role: 'user', createdAt: new Date().toISOString() };
     users.push(newUser);
     saveUser(newUser).catch(e => console.error(e));
     
@@ -1358,6 +1387,10 @@ function adminDeleteUser(email) {
             dbManager.delete("users", email).catch(e => console.error(e));
         }
         localStorage.setItem("lf_users", JSON.stringify(users));
+        // Delete from Supabase cloud
+        if (supabaseDB.isReady) {
+            supabaseDB.delete(email).catch(e => console.error('[Supabase] delete error:', e));
+        }
         showToast("Account permanently removed from system database.", "error");
         
         const activeTab = document.querySelector(".tab-content.active-tab").id;
@@ -1372,15 +1405,20 @@ function adminDeleteUser(email) {
 function renderAdminUsers() {
     const accountsTableBody = document.getElementById("admin-accounts-table-body");
     if (!accountsTableBody) return;
-    
+
     accountsTableBody.innerHTML = "";
     users.forEach(u => {
         const row = document.createElement("tr");
-        
+
         const isSuspended = u.suspended || false;
-        const statusBadge = isSuspended 
-            ? `<span class="status-pill resolved" style="background: rgba(244, 63, 94, 0.15); color: var(--lost); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.8rem;">Suspended</span>` 
+        const statusBadge = isSuspended
+            ? `<span class="status-pill resolved" style="background: rgba(244, 63, 94, 0.15); color: var(--lost); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.8rem;">Suspended</span>`
             : `<span class="status-pill active" style="background: rgba(16, 185, 129, 0.15); color: var(--found); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.8rem;">Active</span>`;
+
+        // Format registration date
+        const registeredDate = u.createdAt
+            ? new Date(u.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+            : '<span style="color:var(--text-muted);font-style:italic;">N/A</span>';
 
         // Build actions
         let actions = "";
@@ -1399,13 +1437,18 @@ function renderAdminUsers() {
         } else {
             actions = `<span style="font-size: 0.8rem; color: var(--text-dark); font-style: italic;">You (Current Session)</span>`;
         }
-        
+
         row.innerHTML = `
-            <td>${u.name}</td>
-            <td><code>${u.email}</code></td>
-            <td><code>${u.password}</code></td>
-            <td><span class="role-badge" style="background: ${u.role === 'admin' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.06)'}; color: ${u.role === 'admin' ? 'var(--primary-light)' : 'var(--text-muted)'};">${u.role.toUpperCase()}</span></td>
+            <td>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:${u.role === 'admin' ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.08)'};display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:${u.role === 'admin' ? 'var(--primary-light)' : 'var(--text-muted)'};flex-shrink:0;">${getInitials(u.name)}</div>
+                    <span>${u.name}</span>
+                </div>
+            </td>
+            <td><code style="font-size:0.82rem;">${u.email}</code></td>
+            <td><span class="role-badge" style="background: ${u.role === 'admin' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.06)'}; color: ${u.role === 'admin' ? 'var(--primary-light)' : 'var(--text-muted)'};"> ${u.role.toUpperCase()}</span></td>
             <td>${statusBadge}</td>
+            <td style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">${registeredDate}</td>
             <td>
                 <div style="display: flex; gap: 8px;">
                     ${actions}

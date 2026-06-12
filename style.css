@@ -3025,6 +3025,57 @@ body.light-mode .chat-input-bar input {
     color: #0f172a;
 }
 
+/* ================= SUPABASE SYNC BADGE ================= */
+.sync-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    transition: all 0.35s ease;
+}
+
+.sync-pending {
+    background: rgba(148, 163, 184, 0.08);
+    border-color: rgba(148, 163, 184, 0.15);
+    color: var(--text-muted);
+}
+
+.sync-online {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.25);
+    color: #10b981;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.12);
+}
+
+.sync-offline {
+    background: rgba(244, 63, 94, 0.1);
+    border-color: rgba(244, 63, 94, 0.25);
+    color: #f43f5e;
+}
+
+/* Light mode sync badge overrides */
+body.light-mode .sync-pending {
+    background: rgba(100, 116, 139, 0.08);
+    color: #64748b;
+}
+
+body.light-mode .sync-online {
+    background: rgba(5, 150, 105, 0.08);
+    color: #059669;
+}
+
+body.light-mode .sync-offline {
+    background: rgba(225, 29, 72, 0.08);
+    color: #e11d48;
+}
+
+
 
 
 
