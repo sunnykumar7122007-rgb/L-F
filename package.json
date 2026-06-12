@@ -4,8 +4,10 @@
   "description": "Campus Lost and Found Portal",
   "main": "index.html",
   "scripts": {
-    "start": "npx http-server -p $PORT"
+    "start": "node server.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "express": "^4.19.2"
+  },
   "devDependencies": {}
 }

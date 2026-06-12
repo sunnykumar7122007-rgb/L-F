@@ -5,21 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Campus Lost & Found Portal</title>
-    <!-- Premium Google Fonts -->
+    <!-- Professional Google Fonts: Inter (body) + Roboto Slab (headings) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto+Slab:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
     <!-- FontAwesome for Premium Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Main Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     <!-- EmailJS SDK for Client-Side Emails -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 
-<body>
+<body class="light-mode">
     <!-- Background Animated Gradients -->
     <div class="bg-gradient-shapes">
         <div class="shape shape-1"></div>
@@ -34,7 +34,7 @@
         <div id="auth-view" class="view active-view">
             <div class="auth-card">
                 <button type="button" class="auth-theme-toggle" onclick="toggleTheme()" title="Toggle Light/Dark Mode">
-                    <i class="fa-solid fa-moon theme-icon"></i>
+                    <i class="fa-solid fa-sun theme-icon"></i>
                 </button>
                 <div class="auth-header">
                     <div class="logo">
@@ -192,8 +192,8 @@
 
                 <div class="sidebar-footer">
                     <button type="button" class="nav-btn theme-toggle-btn" onclick="toggleTheme()" style="width: 100%;">
-                        <i class="fa-solid fa-moon theme-icon"></i>
-                        <span id="theme-btn-text">Dark Mode</span>
+                        <i class="fa-solid fa-sun theme-icon"></i>
+                        <span id="theme-btn-text">Light Mode</span>
                     </button>
                 </div>
             </aside>
@@ -464,6 +464,10 @@
                         <div class="conv-list-panel" id="conv-list-panel">
                             <div class="msg-section-header">
                                 <h3><i class="fa-solid fa-message"></i> Conversations</h3>
+                                <button class="btn-new-message" id="btn-new-message" onclick="openContactsModal()" title="New Message">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    <span>New Message</span>
+                                </button>
                             </div>
                             <div id="conversations-list" class="conversations-list">
                                 <!-- Dynamic conversation cards -->
@@ -665,12 +669,34 @@
         </div>
     </div>
 
+    <!-- Contacts / Add Members Modal -->
+    <div id="contacts-modal-overlay" class="contacts-modal-overlay" onclick="closeContactsModal(event)" style="display:none;">
+        <div class="contacts-modal" id="contacts-modal">
+            <div class="contacts-modal-header">
+                <div class="contacts-modal-title">
+                    <i class="fa-solid fa-users"></i>
+                    <h3>Campus Members</h3>
+                </div>
+                <button class="contacts-modal-close" onclick="closeContactsModal()" aria-label="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="contacts-search-bar">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="contacts-search-input" placeholder="Search by name or email..." oninput="filterContacts(this.value)">
+            </div>
+            <div class="contacts-list" id="contacts-list">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
     <!-- Custom Toast Notification System -->
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Main Logic Script -->
-    <script src="db.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="db.js?v=4"></script>
+    <script src="app.js?v=4"></script>
 </body>
 
 </html>

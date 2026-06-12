@@ -1,0 +1,13 @@
+[
+  {
+    "id": "inv-1781253803904",
+    "fromEmail": "user@campus.edu",
+    "fromName": "Alex Mercer",
+    "toEmail": "sunnykumar7122007@gmail.com",
+    "toName": "Sunny Kumar (Admin)",
+    "itemId": "mock-2",
+    "itemTitle": "Keys on Tan Leather Keyring",
+    "status": "accepted",
+    "createdAt": 1781253803904
+  }
+]

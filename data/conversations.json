@@ -1,0 +1,32 @@
+[
+  {
+    "id": "conv-1781253820115",
+    "participants": [
+      "user@campus.edu",
+      "sunnykumar7122007@gmail.com"
+    ],
+    "itemId": "mock-2",
+    "itemTitle": "Keys on Tan Leather Keyring",
+    "messages": [
+      {
+        "from": "user@campus.edu",
+        "fromName": "Alex Mercer",
+        "text": "hi admin",
+        "timestamp": 1781255212935
+      },
+      {
+        "from": "sunnykumar7122007@gmail.com",
+        "fromName": "Sunny Kumar (Admin)",
+        "text": "kya hal hai yarr",
+        "timestamp": 1781255247226
+      },
+      {
+        "from": "sunnykumar7122007@gmail.com",
+        "fromName": "Sunny Kumar (Admin)",
+        "text": "kya problem hai?",
+        "timestamp": 1781255252943
+      }
+    ],
+    "createdAt": 1781253820115
+  }
+]

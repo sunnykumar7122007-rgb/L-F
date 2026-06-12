@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // ================= THEME CONTROLLER =================
 function initTheme() {
-    const savedTheme = localStorage.getItem("lf_theme") || "dark";
+    const savedTheme = localStorage.getItem("lf_theme") || "light";
     if (savedTheme === "light") {
         document.body.classList.add("light-mode");
     } else {
@@ -379,6 +379,7 @@ function showMainView() {
     updateStats();
     updateThemeUI();
     updateMessageBadge();
+    startDataPolling();
 }
 
 function getInitials(name) {
@@ -668,6 +669,7 @@ function handleLogout() {
     currentUser = null;
     uploadedImageBase64 = null;
     activeConversationId = null;
+    stopDataPolling();
     showToast("Logged out successfully.", "info");
     showAuthView();
     // Reset to User login role by default
@@ -998,8 +1000,8 @@ function handleReportSubmit(event) {
         showToast("Report submitted successfully and published live!", "success");
         switchTab('dashboard');
     } else {
-        showToast("Report submitted successfully. Awaiting Admin approval.", "info");
-        switchTab('my-reports');
+        showToast("Report submitted successfully! It will appear on the dashboard and your reports once approved by an Admin.", "info");
+        switchTab('dashboard');
     }
 }
 
@@ -1100,7 +1102,7 @@ function renderMyReports() {
     const emptyState = document.getElementById("my-reports-empty-state");
     grid.innerHTML = "";
     
-    const myItems = items.filter(item => item.reporterEmail === currentUser.email);
+    const myItems = items.filter(item => item.reporterEmail === currentUser.email && (item.status === 'active' || item.status === 'resolved'));
     
     if (myItems.length === 0) {
         emptyState.style.display = "block";
@@ -1857,6 +1859,8 @@ function closeChatPanel() {
     renderMessages();
 }
 
+let lastActiveConvId = null;
+
 function renderActiveChat() {
     const conv = conversations.find(c => c.id === activeConversationId);
     if (!conv) return;
@@ -1868,7 +1872,9 @@ function renderActiveChat() {
     document.getElementById("chat-item-context").textContent = `Re: ${conv.itemTitle}`;
     
     const messagesContainer = document.getElementById("chat-messages");
-    messagesContainer.innerHTML = conv.messages.map(msg => {
+    const currentMessagesCount = conv.messages.length;
+    
+    const newMessagesHTML = conv.messages.map(msg => {
         const sideClass = msg.from === currentUser.email ? "sent" : "received";
         const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return `
@@ -1879,7 +1885,16 @@ function renderActiveChat() {
         `;
     }).join('');
     
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    if (messagesContainer.innerHTML !== newMessagesHTML) {
+        messagesContainer.innerHTML = newMessagesHTML;
+        
+        if (lastActiveConvId !== activeConversationId || currentMessagesCount > activeChatLastMsgCount) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }
+    
+    lastActiveConvId = activeConversationId;
+    activeChatLastMsgCount = currentMessagesCount;
 }
 
 function sendMessage() {
@@ -1899,11 +1914,349 @@ function sendMessage() {
     };
     
     conversations[convIndex].messages.push(newMessage);
+    activeChatLastMsgCount = conversations[convIndex].messages.length;
     saveConversation(conversations[convIndex]).catch(e => console.error(e));
     
     input.value = "";
     renderActiveChat();
-    
-    // Also update conversation list preview
     renderMessages();
 }
+
+// ================= REAL-TIME DATA POLLING & SYNCHRONIZATION =================
+let dataPollingInterval = null;
+let lastConvsJSON = "";
+let lastInvsJSON = "";
+let lastItemsJSON = "";
+let activeChatLastMsgCount = 0;
+
+function startDataPolling() {
+    if (dataPollingInterval) clearInterval(dataPollingInterval);
+    
+    lastConvsJSON = JSON.stringify(conversations);
+    lastInvsJSON = JSON.stringify(chatInvitations);
+    lastItemsJSON = JSON.stringify(items);
+    
+    if (activeConversationId) {
+        const activeConv = conversations.find(c => c.id === activeConversationId);
+        activeChatLastMsgCount = activeConv ? activeConv.messages.length : 0;
+    }
+
+    dataPollingInterval = setInterval(async () => {
+        if (!currentUser || !dbManager.db) return;
+
+        try {
+            // ---- Sync chat invitations & conversations ----
+            const newInvitations = await dbManager.getAll("chat_invitations");
+            const newConversations = await dbManager.getAll("conversations");
+
+            const invsJSON = JSON.stringify(newInvitations);
+            const convsJSON = JSON.stringify(newConversations);
+
+            const invitationsChanged = invsJSON !== lastInvsJSON;
+            const conversationsChanged = convsJSON !== lastConvsJSON;
+
+            if (invitationsChanged || conversationsChanged) {
+                let playSound = false;
+
+                if (invitationsChanged) {
+                    const oldPendingInvs = chatInvitations.filter(inv => inv.toEmail === currentUser.email && inv.status === 'pending');
+                    const newPendingInvs = newInvitations.filter(inv => inv.toEmail === currentUser.email && inv.status === 'pending');
+                    
+                    const oldInvIds = oldPendingInvs.map(inv => inv.id);
+                    const hasNewInv = newPendingInvs.some(inv => !oldInvIds.includes(inv.id));
+                    if (hasNewInv) playSound = true;
+                }
+
+                if (conversationsChanged) {
+                    newConversations.forEach(newConv => {
+                        if (newConv.participants.includes(currentUser.email)) {
+                            const oldConv = conversations.find(c => c.id === newConv.id);
+                            const oldMsgCount = oldConv ? oldConv.messages.length : 0;
+                            
+                            if (newConv.messages.length > oldMsgCount) {
+                                const lastMsg = newConv.messages[newConv.messages.length - 1];
+                                if (lastMsg && lastMsg.from !== currentUser.email) {
+                                    playSound = true;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                chatInvitations = newInvitations;
+                conversations = newConversations;
+                lastInvsJSON = invsJSON;
+                lastConvsJSON = convsJSON;
+
+                localStorage.setItem("lf_chat_invitations", JSON.stringify(chatInvitations));
+                localStorage.setItem("lf_conversations", JSON.stringify(conversations));
+
+                if (playSound) {
+                    playChimeNotification();
+                }
+
+                updateMessageBadge();
+
+                const activeTab = document.querySelector(".tab-content.active-tab")?.id;
+                if (activeTab === 'tab-messages') {
+                    renderMessages();
+                }
+            }
+
+            // ---- Sync items so admin approvals appear live on dashboard ----
+            const newItems = await dbManager.getAll("items");
+            const newItemsJSON = JSON.stringify(newItems);
+            if (newItemsJSON !== lastItemsJSON) {
+                items = newItems;
+                items.sort((a, b) => b.createdAt - a.createdAt);
+                lastItemsJSON = newItemsJSON;
+                localStorage.setItem("lf_items", JSON.stringify(items));
+                updateStats();
+                const activeTab2 = document.querySelector(".tab-content.active-tab")?.id;
+                if (activeTab2 === 'tab-dashboard') renderDashboard();
+                if (activeTab2 === 'tab-my-reports') renderMyReports();
+                if (activeTab2 === 'tab-admin' && currentUser.role === 'admin') renderAdminConsole();
+            }
+
+        } catch (error) {
+            console.warn("Error in background data polling:", error);
+        }
+    }, 3500);
+}
+
+function stopDataPolling() {
+    if (dataPollingInterval) {
+        clearInterval(dataPollingInterval);
+        dataPollingInterval = null;
+    }
+}
+
+function playChimeNotification() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const playTone = (freq, startTime, duration) => {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startTime);
+            
+            gainNode.gain.setValueAtTime(0.06, startTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        };
+        
+        const now = audioCtx.currentTime;
+        playTone(587.33, now, 0.45); // D5
+        playTone(880, now + 0.12, 0.6); // A5
+    } catch (err) {
+        console.warn("Could not play synthesized audio notification:", err);
+    }
+}
+
+// ================= CONTACTS MODAL (ADD MEMBERS) =================
+
+let _contactsSearchQuery = "";
+
+/**
+ * Opens the Contacts modal and renders all campus members.
+ */
+function openContactsModal() {
+    const overlay = document.getElementById("contacts-modal-overlay");
+    if (!overlay) return;
+    _contactsSearchQuery = "";
+    const searchInput = document.getElementById("contacts-search-input");
+    if (searchInput) searchInput.value = "";
+    renderContactsList("");
+    overlay.style.display = "flex";
+    // Auto-focus search
+    setTimeout(() => { if (searchInput) searchInput.focus(); }, 120);
+}
+
+/**
+ * Closes the Contacts modal. If called from a click, only close if the overlay bg itself was clicked.
+ */
+function closeContactsModal(event) {
+    if (event && event.target.id !== "contacts-modal-overlay") return;
+    const overlay = document.getElementById("contacts-modal-overlay");
+    if (overlay) overlay.style.display = "none";
+}
+
+/**
+ * Filters the rendered contact list by name or email.
+ */
+function filterContacts(query) {
+    _contactsSearchQuery = query.trim().toLowerCase();
+    renderContactsList(_contactsSearchQuery);
+}
+
+/**
+ * Renders all campus users (excluding the current user) as contact cards.
+ * Shows existing conversation / pending invitation status for each.
+ */
+function renderContactsList(query) {
+    const list = document.getElementById("contacts-list");
+    if (!list || !currentUser) return;
+
+    // Filter users: exclude self, optionally filter by search
+    let contacts = users.filter(u => {
+        if (u.email === currentUser.email) return false;
+        if (!query) return true;
+        return (
+            u.name.toLowerCase().includes(query) ||
+            u.email.toLowerCase().includes(query)
+        );
+    });
+
+    // Sort: admin first, then alphabetically by name
+    contacts.sort((a, b) => {
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        if (b.role === 'admin' && a.role !== 'admin') return 1;
+        return a.name.localeCompare(b.name);
+    });
+
+    if (contacts.length === 0) {
+        list.innerHTML = `
+            <div class="contacts-empty">
+                <i class="fa-solid fa-user-slash"></i>
+                <p>${query ? "No members match your search." : "No other members yet."}</p>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = contacts.map(u => {
+        const initials = getInitials(u.name);
+        const isAdmin = u.role === 'admin';
+        const avatarClass = isAdmin ? "contact-avatar admin-avatar" : "contact-avatar";
+
+        // Determine relationship status
+        const existingConv = conversations.find(c =>
+            c.participants.includes(currentUser.email) &&
+            c.participants.includes(u.email)
+        );
+        const pendingInv = chatInvitations.find(inv =>
+            inv.fromEmail === currentUser.email &&
+            inv.toEmail === u.email &&
+            inv.status === 'pending'
+        );
+        const receivedInv = chatInvitations.find(inv =>
+            inv.fromEmail === u.email &&
+            inv.toEmail === currentUser.email &&
+            inv.status === 'pending'
+        );
+
+        let statusBadge = '';
+        let actionBtn = '';
+
+        if (existingConv) {
+            statusBadge = `<span class="contact-status-badge chatting"><i class="fa-solid fa-check"></i> Chatting</span>`;
+            actionBtn = `<button class="contact-action" onclick="openConvFromContacts('${existingConv.id}')">Open Chat</button>`;
+        } else if (pendingInv) {
+            statusBadge = `<span class="contact-status-badge pending">Invitation Sent</span>`;
+            actionBtn = '';
+        } else if (receivedInv) {
+            statusBadge = `<span class="contact-status-badge pending">Awaiting Reply</span>`;
+            actionBtn = `<button class="contact-action" onclick="acceptInvitationFromContacts('${receivedInv.id}')">Accept</button>`;
+        } else {
+            actionBtn = `<button class="contact-action" onclick="startDirectMessage('${u.email}')">Message</button>`;
+        }
+
+        return `
+            <div class="contact-item" id="contact-item-${u.email.replace(/[@.]/g, '_')}">
+                <div class="${avatarClass}">${initials}</div>
+                <div class="contact-info">
+                    <div class="contact-name">${u.name}</div>
+                    <div class="contact-email">${u.email}</div>
+                </div>
+                <div class="contact-badges">
+                    <span class="contact-role-badge ${u.role}">${isAdmin ? 'Admin' : 'Student'}</span>
+                    ${statusBadge}
+                    ${actionBtn}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Sends a direct chat invitation to a user (no item context – general DM).
+ */
+function startDirectMessage(toEmail) {
+    const targetUser = users.find(u => u.email === toEmail);
+    if (!targetUser) return;
+
+    if (toEmail === currentUser.email) {
+        showToast("You cannot message yourself.", "error");
+        return;
+    }
+
+    // Guard: already a pending invitation
+    const alreadyPending = chatInvitations.find(inv =>
+        inv.fromEmail === currentUser.email &&
+        inv.toEmail === toEmail &&
+        inv.status === 'pending'
+    );
+    if (alreadyPending) {
+        showToast("Invitation already sent — waiting for reply.", "info");
+        return;
+    }
+
+    // Guard: already has an active conversation
+    const existingConv = conversations.find(c =>
+        c.participants.includes(currentUser.email) &&
+        c.participants.includes(toEmail)
+    );
+    if (existingConv) {
+        openConvFromContacts(existingConv.id);
+        return;
+    }
+
+    const newInvitation = {
+        id: 'inv-' + Date.now(),
+        fromEmail: currentUser.email,
+        fromName: currentUser.name,
+        toEmail: targetUser.email,
+        toName: targetUser.name,
+        itemId: 'direct',
+        itemTitle: 'Direct Message',
+        status: 'pending',
+        createdAt: Date.now()
+    };
+
+    chatInvitations.push(newInvitation);
+    saveInvitation(newInvitation).catch(e => console.error(e));
+
+    showToast(`Message invitation sent to ${targetUser.name}!`, "success");
+    renderContactsList(_contactsSearchQuery);
+    updateMessageBadge();
+}
+
+/**
+ * Opens a conversation directly from the Contacts modal and switches to Messages tab.
+ */
+function openConvFromContacts(convId) {
+    activeConversationId = convId;
+    // Close modal first
+    const overlay = document.getElementById("contacts-modal-overlay");
+    if (overlay) overlay.style.display = "none";
+    // Switch to Messages tab
+    switchTab('messages');
+    renderMessages();
+}
+
+/**
+ * Accept a received invitation directly from the Contacts modal.
+ */
+function acceptInvitationFromContacts(invId) {
+    acceptInvitation(invId);
+    // Re-render the contacts list to show updated state
+    renderContactsList(_contactsSearchQuery);
+}
+

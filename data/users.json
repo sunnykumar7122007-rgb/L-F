@@ -1,0 +1,14 @@
+[
+  {
+    "email": "sunnykumar7122007@gmail.com",
+    "password": "$unny1357.S",
+    "role": "admin",
+    "name": "Sunny Kumar (Admin)"
+  },
+  {
+    "email": "user@campus.edu",
+    "password": "password",
+    "role": "user",
+    "name": "Alex Mercer"
+  }
+]
