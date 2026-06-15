@@ -20,6 +20,11 @@
 </head>
 
 <body class="light-mode">
+<script>
+if (location.protocol === 'file:') {
+  location.replace('http://localhost:8081' + location.pathname);
+}
+</script>
     <!-- Background Animated Gradients -->
     <div class="bg-gradient-shapes">
         <div class="shape shape-1"></div>
@@ -447,7 +452,12 @@
                 </section>
 
                 <!-- ================= TAB CONTENT: MESSAGES ================= -->
-                <section id="tab-messages" class="tab-content">
+                <section id="tab-messages" class="tab-content" style="position: relative;">
+                    <!-- Floating New Messages Button (top-right) -->
+                    <button class="btn-new-message-fab" id="btn-new-message" onclick="openContactsModal()" title="New Messages">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span class="fab-tooltip">New Messages</span>
+                    </button>
                     <!-- Pending Invitations -->
                     <div class="msg-invitations-section" id="msg-invitations-section">
                         <div class="msg-section-header">
@@ -464,10 +474,6 @@
                         <div class="conv-list-panel" id="conv-list-panel">
                             <div class="msg-section-header">
                                 <h3><i class="fa-solid fa-message"></i> Conversations</h3>
-                                <button class="btn-new-message" id="btn-new-message" onclick="openContactsModal()" title="New Message">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                    <span>New Message</span>
-                                </button>
                             </div>
                             <div id="conversations-list" class="conversations-list">
                                 <!-- Dynamic conversation cards -->
@@ -704,6 +710,7 @@
     <script src="db.js?v=4"></script>
     <script src="email.js?v=4"></script>
     <script src="messages.js?v=1"></script>
+    <script src="app.js?v=4"></script>
 </body>
 
 </html>

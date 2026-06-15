@@ -4,7 +4,7 @@ const fsSync = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 
 // Middleware
 app.use(express.json({ limit: '10mb' })); // support large payloads for compressed base64 images

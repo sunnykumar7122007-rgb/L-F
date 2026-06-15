@@ -2611,33 +2611,85 @@ body.light-mode .chat-input-bar input {
     justify-content: space-between;
 }
 
-/* ================= NEW MESSAGE BUTTON ================= */
-.btn-new-message {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 7px 14px;
-    background: var(--primary);
+/* ================= NEW MESSAGES FLOATING ACTION BUTTON ================= */
+.btn-new-message-fab {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 20;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
     color: #fff;
     border: none;
-    border-radius: var(--radius-sm);
-    font-family: var(--font-primary);
-    font-size: 0.8rem;
-    font-weight: 600;
     cursor: pointer;
-    transition: var(--transition-fast);
-    letter-spacing: 0.2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    box-shadow: 0 6px 20px var(--primary-glow), 0 2px 8px rgba(0,0,0,0.18);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.25s ease;
+    animation: fab-pulse 2.5s infinite ease-in-out;
+}
+
+@keyframes fab-pulse {
+    0%, 100% { box-shadow: 0 6px 20px var(--primary-glow), 0 2px 8px rgba(0,0,0,0.18); }
+    50% { box-shadow: 0 6px 28px var(--primary-glow), 0 0 18px rgba(139, 92, 246, 0.35); }
+}
+
+.btn-new-message-fab:hover {
+    transform: scale(1.12) rotate(-6deg);
+    box-shadow: 0 8px 28px var(--primary-glow), 0 0 24px rgba(139, 92, 246, 0.4);
+    animation: none;
+}
+
+.btn-new-message-fab:active {
+    transform: scale(0.95);
+}
+
+.btn-new-message-fab i {
+    font-size: 1.15rem;
+    pointer-events: none;
+}
+
+/* Tooltip label that appears on hover */
+.btn-new-message-fab .fab-tooltip {
+    position: absolute;
+    right: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-family: var(--font-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
     white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    border: 1px solid var(--border-glass);
 }
 
-.btn-new-message:hover {
-    background: var(--primary-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px var(--primary-glow);
+.btn-new-message-fab:hover .fab-tooltip {
+    opacity: 1;
 }
 
-.btn-new-message i {
-    font-size: 0.85rem;
+/* Light mode overrides */
+body.light-mode .btn-new-message-fab {
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.25), 0 2px 8px rgba(0,0,0,0.08);
+}
+
+body.light-mode .btn-new-message-fab .fab-tooltip {
+    background: #ffffff;
+    color: #1e293b;
+    border-color: rgba(15, 23, 42, 0.1);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
 }
 
 /* ================= CONTACTS MODAL ================= */

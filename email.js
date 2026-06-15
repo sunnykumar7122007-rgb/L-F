@@ -19,7 +19,7 @@ async function sendWelcomeEmail(user) {
     const templateParams = {
         user_name: user.name,
         user_email: user.email,
-        login_url: window.location.origin || "http://127.0.0.1:8080",
+        login_url: window.location.origin || "http://127.0.0.1:8081",
         reply_to: "no-reply@campuslf.edu"
     };
 
