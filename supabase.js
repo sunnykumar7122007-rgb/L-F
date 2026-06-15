@@ -101,5 +101,44 @@ const supabaseDB = {
             .delete()
             .eq('email', email);
         if (error) throw error;
+    },
+
+    /**
+     * Upload a file (image or voice) to Supabase storage.
+     * @param {File} file - The File object to upload.
+     * @param {string} path - Destination path within the storage bucket.
+     * @returns {Promise<string>} - Public URL of the uploaded file.
+     */
+    async uploadMedia(file, path) {
+        const client = _getClient();
+        // Ensure a bucket named 'messages' exists in Supabase Storage.
+        const { data, error } = await client.storage
+            .from('messages')
+            .upload(`${path}/${file.name}`, file, { upsert: true });
+        if (error) throw error;
+        // Get public URL
+        const { publicURL, error: urlError } = client.storage
+            .from('messages')
+            .getPublicUrl(`${path}/${file.name}`);
+        if (urlError) throw urlError;
+        return publicURL;
+    },
+
+    /**
+     * Send a chat message (text, image, or voice) to another user.
+     * @param {Object} payload - Message payload.
+     *   { string } sender_id   - ID of the sender.
+     *   { string } receiver_id - ID of the receiver.
+     *   { string } [text]      - Text content (optional).
+     *   { string } [media_url] - URL of uploaded media (optional).
+     *   { string } [media_type] - 'image' or 'voice' (optional).
+     */
+    async sendMessage(payload) {
+        const client = _getClient();
+        const { error } = await client
+            .from('messages')
+            .insert([payload]);
+        if (error) throw error;
+        return true;
     }
 };

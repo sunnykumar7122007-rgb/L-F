@@ -1030,7 +1030,7 @@ function handleReportSubmit(event) {
         switchTab('dashboard');
     } else {
         showToast("Report submitted successfully! It will appear on the dashboard and your reports once approved by an Admin.", "info");
-        switchTab('dashboard');
+        switchTab('my-reports');
     }
 }
 
@@ -1131,7 +1131,7 @@ function renderMyReports() {
     const emptyState = document.getElementById("my-reports-empty-state");
     grid.innerHTML = "";
     
-    const myItems = items.filter(item => item.reporterEmail === currentUser.email && (item.status === 'active' || item.status === 'resolved'));
+    const myItems = items.filter(item => item.reporterEmail === currentUser.email);
     
     if (myItems.length === 0) {
         emptyState.style.display = "block";
@@ -1295,6 +1295,10 @@ function applyFilters() {
 
 // ================= ADMIN CONSOLE ACTIONS =================
 function adminApproveItem(itemId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast("Permission denied. Admin role required.", "error");
+        return;
+    }
     const itemIndex = items.findIndex(i => i.id === itemId);
     if (itemIndex > -1) {
         items[itemIndex].status = 'active';
@@ -1306,6 +1310,10 @@ function adminApproveItem(itemId) {
 }
 
 function adminResolveItem(itemId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast("Permission denied. Admin role required.", "error");
+        return;
+    }
     const itemIndex = items.findIndex(i => i.id === itemId);
     if (itemIndex > -1) {
         items[itemIndex].status = 'resolved';
@@ -1317,6 +1325,10 @@ function adminResolveItem(itemId) {
 }
 
 function adminDeleteItem(itemId) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast("Permission denied. Admin role required.", "error");
+        return;
+    }
     if (confirm("Are you sure you want to permanently delete this report?")) {
         items = items.filter(i => i.id !== itemId);
         deleteItemFromDB(itemId).catch(e => console.error(e));
@@ -1346,6 +1358,10 @@ async function resetMockDataBtn() {
 
 // User Accounts Management Actions
 function adminToggleUserRole(email) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast("Permission denied. Admin role required.", "error");
+        return;
+    }
     const userIndex = users.findIndex(u => u.email === email);
     if (userIndex > -1) {
         const u = users[userIndex];
@@ -1363,6 +1379,10 @@ function adminToggleUserRole(email) {
 }
 
 function adminToggleUserSuspend(email) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast("Permission denied. Admin role required.", "error");
+        return;
+    }
     const userIndex = users.findIndex(u => u.email === email);
     if (userIndex > -1) {
         const u = users[userIndex];
@@ -1380,6 +1400,10 @@ function adminToggleUserSuspend(email) {
 }
 
 function adminDeleteUser(email) {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast("Permission denied. Admin role required.", "error");
+        return;
+    }
     const bypassConfirm = window.navigator.webdriver || window.location.search.includes('bypass_confirm=true');
     if (bypassConfirm || confirm(`Are you sure you want to permanently delete the account linked to ${email}?`)) {
         users = users.filter(u => u.email !== email);
@@ -1389,7 +1413,10 @@ function adminDeleteUser(email) {
         localStorage.setItem("lf_users", JSON.stringify(users));
         // Delete from Supabase cloud
         if (supabaseDB.isReady) {
-            supabaseDB.delete(email).catch(e => console.error('[Supabase] delete error:', e));
+            supabaseDB.delete(email).catch(e => {
+                console.error('[Supabase] delete error:', e);
+                showToast("Warning: Failed to delete user from Supabase. They might be restored on next sync.", "warning");
+            });
         }
         showToast("Account permanently removed from system database.", "error");
         
