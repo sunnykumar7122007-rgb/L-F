@@ -425,6 +425,7 @@ let currentLoginRole = 'user';
 
 function switchAuthRole(role) {
     currentLoginRole = role;
+    updatePrefillChips();
     
     // Toggle active classes on tab buttons
     const userTab = document.getElementById("tab-btn-user");
@@ -611,11 +612,20 @@ function prefillLogin(email, password, role) {
     showToast(`Credentials pre-filled for ${role} demo!`, "info");
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
     const email = document.getElementById("login-email").value.trim().toLowerCase();
     const password = document.getElementById("login-password").value;
     const rememberMe = document.getElementById("login-remember").checked;
+    
+    // Fetch latest users list from DB to avoid stale data (e.g. deleted/suspended user logins)
+    try {
+        if (dbManager.db) {
+            users = await dbManager.getAll("users");
+        }
+    } catch (e) {
+        console.warn("Failed to fetch latest users, using local cache", e);
+    }
     
     const matchedUser = users.find(u => u.email === email && u.password === password && u.role === currentLoginRole);
     
@@ -654,7 +664,7 @@ function checkPasswordStrength(password) {
     return password.length >= minLength && hasUppercase && hasLowercase && hasDigit && hasSpecial;
 }
 
-function handleSignup(event) {
+async function handleSignup(event) {
     event.preventDefault();
     const name = document.getElementById("signup-name").value.trim();
     const email = document.getElementById("signup-email").value.trim().toLowerCase();
@@ -664,6 +674,15 @@ function handleSignup(event) {
     if (!checkPasswordStrength(password)) {
         showToast("Password must be at least 8 characters and contain uppercase, lowercase, numbers, and special characters.", "error");
         return;
+    }
+    
+    // Fetch latest users list from DB to avoid stale data (e.g. blocking signup of a deleted email)
+    try {
+        if (dbManager.db) {
+            users = await dbManager.getAll("users");
+        }
+    } catch (e) {
+        console.warn("Failed to fetch latest users, using local cache", e);
     }
     
     // Check if email already exists
@@ -681,8 +700,7 @@ function handleSignup(event) {
     sendWelcomeEmail(newUser).catch(e => console.error(e));
     
     showToast("Account created successfully! Please log in now.", "success");
-
-    
+ 
     // Switch to login form and pre-fill details
     showLoginForm();
     document.getElementById("login-email").value = email;
@@ -693,6 +711,18 @@ function handleSignup(event) {
 }
 
 function handleLogout() {
+    // Safety cleanup for voice recording if user logs out while recording
+    if (voiceRecordingStream) {
+        voiceRecordingStream.getTracks().forEach(track => track.stop());
+        voiceRecordingStream = null;
+    }
+    isVoiceRecording = false;
+    const voiceBtn = document.getElementById("voice-record-btn");
+    if (voiceBtn) {
+        voiceBtn.classList.remove("recording");
+        voiceBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+    }
+
     localStorage.removeItem("lf_session");
     sessionStorage.removeItem("lf_session");
     currentUser = null;
@@ -1400,6 +1430,9 @@ function adminToggleUserSuspend(email) {
 }
 
 function adminDeleteUser(email) {
+    // Decode email in case it was encoded for safe HTML attribute usage
+    email = decodeURIComponent(email);
+
     if (!currentUser || currentUser.role !== 'admin') {
         showToast("Permission denied. Admin role required.", "error");
         return;
@@ -1429,12 +1462,25 @@ function adminDeleteUser(email) {
     }
 }
 
+let adminUserSearchQuery = "";
+
+function filterAdminUsers(query) {
+    adminUserSearchQuery = query.trim().toLowerCase();
+    renderAdminUsers();
+}
+
 function renderAdminUsers() {
     const accountsTableBody = document.getElementById("admin-accounts-table-body");
     if (!accountsTableBody) return;
 
     accountsTableBody.innerHTML = "";
-    users.forEach(u => {
+    const filteredUsers = users.filter(u => {
+        if (!adminUserSearchQuery) return true;
+        const nameMatch = u.name && u.name.toLowerCase().includes(adminUserSearchQuery);
+        const emailMatch = u.email && u.email.toLowerCase().includes(adminUserSearchQuery);
+        return nameMatch || emailMatch;
+    });
+    filteredUsers.forEach(u => {
         const row = document.createElement("tr");
 
         const isSuspended = u.suspended || false;
@@ -1457,7 +1503,7 @@ function renderAdminUsers() {
                 <button class="btn ${isSuspended ? 'btn-success' : 'btn-warning'} btn-sm" onclick="adminToggleUserSuspend('${u.email}')" title="${isSuspended ? 'Activate User' : 'Suspend User'}">
                     <i class="fa-solid ${isSuspended ? 'fa-user-check' : 'fa-user-slash'}"></i> ${isSuspended ? 'Activate' : 'Suspend'}
                 </button>
-                <button class="btn btn-danger btn-sm" onclick="adminDeleteUser('${u.email}')" title="Delete User">
+                <button class="btn btn-danger btn-sm" onclick="adminDeleteUser(encodeURIComponent('${u.email}'));" title="Delete User">
                     <i class="fa-solid fa-trash-can"></i> Delete
                 </button>
             `;
@@ -1846,6 +1892,13 @@ function updateMessageBadge() {
     }
 }
 
+let messageSearchQuery = "";
+
+function filterMessages(query) {
+    messageSearchQuery = query.trim().toLowerCase();
+    renderMessages();
+}
+
 function renderMessages() {
     if (!currentUser) return;
     
@@ -1881,7 +1934,19 @@ function renderMessages() {
     }
     
     // 2. Render conversations
-    const userConvs = conversations.filter(c => c.participants.includes(currentUser.email));
+    let userConvs = conversations.filter(c => c.participants.includes(currentUser.email));
+    
+    if (messageSearchQuery) {
+        userConvs = userConvs.filter(c => {
+            const partnerEmail = c.participants.find(p => p !== currentUser.email);
+            const partner = users.find(u => u.email === partnerEmail) || { name: partnerEmail };
+            const nameMatch = partner.name && partner.name.toLowerCase().includes(messageSearchQuery);
+            const titleMatch = c.itemTitle && c.itemTitle.toLowerCase().includes(messageSearchQuery);
+            const msgsMatch = c.messages && c.messages.some(m => m.text.toLowerCase().includes(messageSearchQuery));
+            return nameMatch || titleMatch || msgsMatch;
+        });
+    }
+
     const convList = document.getElementById("conversations-list");
     const convEmptyState = document.getElementById("conv-empty-state");
     
@@ -1947,9 +2012,22 @@ function renderActiveChat() {
     const newMessagesHTML = conv.messages.map(msg => {
         const sideClass = msg.from === currentUser.email ? "sent" : "received";
         const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        let mediaHTML = "";
+        if (msg.mediaUrl) {
+            if (msg.mediaType === 'image') {
+                mediaHTML = `<div class="chat-bubble-media"><img src="${msg.mediaUrl}" class="chat-image" alt="Image" onclick="window.open(this.src, '_blank')"/></div>`;
+            } else if (msg.mediaType === 'voice') {
+                mediaHTML = `<div class="chat-bubble-media"><audio controls src="${msg.mediaUrl}" class="chat-audio"></audio></div>`;
+            }
+        }
+        
+        const textHTML = msg.text ? `<span class="chat-bubble-text">${msg.text}</span>` : "";
+        
         return `
             <div class="chat-bubble ${sideClass}">
-                <span class="chat-bubble-text">${msg.text}</span>
+                ${mediaHTML}
+                ${textHTML}
                 <span class="chat-bubble-time">${formattedTime}</span>
             </div>
         `;
@@ -1992,11 +2070,149 @@ function sendMessage() {
     renderMessages();
 }
 
+// Hidden input handlers for chat media
+function handleChatImageSelection(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file size (Max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showToast("Image size exceeds 5MB limit.", "error");
+        return;
+    }
+    
+    compressChatImage(file, function(compressedBase64) {
+        sendMediaMessage(compressedBase64, 'image');
+    });
+    
+    // Reset file input
+    event.target.value = "";
+}
+
+function compressChatImage(file, callback) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = function() {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            
+            const MAX_WIDTH = 400;
+            const MAX_HEIGHT = 300;
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
+            callback(compressedBase64);
+        };
+    };
+    reader.onerror = function() {
+        showToast("Error reading image file.", "error");
+    };
+}
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let isVoiceRecording = false;
+let voiceRecordingStream = null;
+
+async function toggleVoiceRecording() {
+    const voiceBtn = document.getElementById("voice-record-btn");
+    if (!isVoiceRecording) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showToast("Microphone not supported on this browser/device.", "error");
+            return;
+        }
+        try {
+            voiceRecordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(voiceRecordingStream);
+            recordedChunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                    const base64Audio = reader.result;
+                    sendMediaMessage(base64Audio, 'voice');
+                };
+                
+                if (voiceRecordingStream) {
+                    voiceRecordingStream.getTracks().forEach(track => track.stop());
+                    voiceRecordingStream = null;
+                }
+            };
+            
+            mediaRecorder.start();
+            isVoiceRecording = true;
+            voiceBtn.classList.add("recording");
+            voiceBtn.innerHTML = '<i class="fa-solid fa-square" style="color: var(--lost);"></i>';
+            showToast("Recording voice... Click the microphone icon again to stop and send.", "success");
+        } catch (err) {
+            console.error('Microphone access error:', err);
+            showToast("Microphone access denied or not available.", "error");
+        }
+    } else {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        isVoiceRecording = false;
+        voiceBtn.classList.remove("recording");
+        voiceBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+    }
+}
+
+function sendMediaMessage(mediaUrl, mediaType) {
+    if (!activeConversationId) return;
+    
+    const convIndex = conversations.findIndex(c => c.id === activeConversationId);
+    if (convIndex === -1) return;
+    
+    const newMessage = {
+        from: currentUser.email,
+        fromName: currentUser.name,
+        text: "",
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
+        timestamp: Date.now()
+    };
+    
+    conversations[convIndex].messages.push(newMessage);
+    activeChatLastMsgCount = conversations[convIndex].messages.length;
+    saveConversation(conversations[convIndex]).catch(e => console.error(e));
+    
+    renderActiveChat();
+    renderMessages();
+}
+
 // ================= REAL-TIME DATA POLLING & SYNCHRONIZATION =================
 let dataPollingInterval = null;
 let lastConvsJSON = "";
 let lastInvsJSON = "";
 let lastItemsJSON = "";
+let lastUsersJSON = "";
 let activeChatLastMsgCount = 0;
 
 function startDataPolling() {
@@ -2005,6 +2221,7 @@ function startDataPolling() {
     lastConvsJSON = JSON.stringify(conversations);
     lastInvsJSON = JSON.stringify(chatInvitations);
     lastItemsJSON = JSON.stringify(items);
+    lastUsersJSON = JSON.stringify(users);
     
     if (activeConversationId) {
         const activeConv = conversations.find(c => c.id === activeConversationId);
@@ -2015,6 +2232,38 @@ function startDataPolling() {
         if (!currentUser || !dbManager.db) return;
 
         try {
+            // ---- Sync users so admin deletions, suspensions, and role changes propagate live ----
+            const newUsers = await dbManager.getAll("users");
+            const newUsersJSON = JSON.stringify(newUsers);
+            if (newUsersJSON !== lastUsersJSON) {
+                users = newUsers;
+                lastUsersJSON = newUsersJSON;
+                localStorage.setItem("lf_users", JSON.stringify(users));
+
+                // Session validation for the logged-in user
+                const activeMe = users.find(u => u.email === currentUser.email);
+                if (!activeMe) {
+                    showToast("Your account has been deleted by an Administrator.", "error");
+                    handleLogout();
+                    return; // exit polling loop immediately
+                } else if (activeMe.suspended) {
+                    showToast("Your account has been suspended by an Administrator.", "error");
+                    handleLogout();
+                    return;
+                } else if (activeMe.role !== currentUser.role) {
+                    currentUser.role = activeMe.role;
+                    sessionStorage.setItem("lf_session", JSON.stringify(currentUser));
+                    localStorage.setItem("lf_session", JSON.stringify(currentUser));
+                    showToast(`Your role has been updated to ${activeMe.role.toUpperCase()}.`, "info");
+                    showMainView();
+                }
+
+                const activeTabUsers = document.querySelector(".tab-content.active-tab")?.id;
+                if (activeTabUsers === 'tab-admin-users') {
+                    renderAdminUsers();
+                }
+            }
+
             // ---- Sync chat invitations & conversations ----
             const newInvitations = await dbManager.getAll("chat_invitations");
             const newConversations = await dbManager.getAll("conversations");

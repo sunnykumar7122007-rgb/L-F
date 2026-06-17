@@ -14,7 +14,7 @@
     <!-- FontAwesome for Premium Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Main Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="/style.css?v=4">
     <!-- EmailJS SDK for Client-Side Emails -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
@@ -51,9 +51,9 @@ if (location.protocol === 'file:') {
 
                 <!-- Auth Tabs (Toggles User vs Admin Login Role) -->
                 <div class="auth-tabs" id="auth-tabs-container">
-                    <button class="auth-tab-btn active" id="tab-btn-user" onclick="switchAuthRole('user')">User
+                    <button type="button" class="auth-tab-btn active" id="tab-btn-user" onclick="switchAuthRole('user')">User
                         Login</button>
-                    <button class="auth-tab-btn" id="tab-btn-admin" onclick="switchAuthRole('admin')">Admin
+                    <button type="button" class="auth-tab-btn" id="tab-btn-admin" onclick="switchAuthRole('admin')">Admin
                         Login</button>
                 </div>
 
@@ -475,6 +475,11 @@ if (location.protocol === 'file:') {
                             <div class="msg-section-header">
                                 <h3><i class="fa-solid fa-message"></i> Conversations</h3>
                             </div>
+                            <div class="search-box" style="margin: 0 0 1rem 0; flex: none; width: 100%; min-width: 0;">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="message-search" placeholder="Search messages or users..." class="admin-search-input" oninput="filterMessages(this.value)" />
+                            </div>
+
                             <div id="conversations-list" class="conversations-list">
                                 <!-- Dynamic conversation cards -->
                             </div>
@@ -500,6 +505,13 @@ if (location.protocol === 'file:') {
                                 <!-- Dynamic messages -->
                             </div>
                             <div class="chat-input-bar">
+                                <button type="button" class="chat-media-btn" id="chat-image-btn" onclick="document.getElementById('chat-image-input').click()" title="Send Image">
+                                    <i class="fa-regular fa-image"></i>
+                                </button>
+                                <button type="button" class="chat-media-btn" id="voice-record-btn" onclick="toggleVoiceRecording()" title="Record Voice">
+                                    <i class="fa-solid fa-microphone"></i>
+                                </button>
+                                <input type="file" id="chat-image-input" accept="image/*" style="display: none;" onchange="handleChatImageSelection(event)">
                                 <input type="text" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()">
                                 <button class="chat-send-btn" onclick="sendMessage()">
                                     <i class="fa-solid fa-paper-plane"></i>
@@ -587,6 +599,10 @@ if (location.protocol === 'file:') {
                             <div>
                                 <h2>Registered Accounts</h2>
                                 <p>Manage campus accounts, roles, and access permissions</p>
+                            </div>
+                            <div class="search-box" style="flex: 1; max-width: 350px;">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="admin-user-search" placeholder="Search by name or email..." class="admin-search-input" oninput="filterAdminUsers(this.value)" />
                             </div>
                             <span id="supabase-sync-badge" class="sync-badge sync-pending">
                                 <i class="fa-solid fa-rotate fa-spin" style="font-size:0.65rem;"></i> Connecting…
@@ -705,12 +721,11 @@ if (location.protocol === 'file:') {
 
     <!-- Supabase JS SDK (user account cloud sync) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase.js?v=1"></script>
+    <script src="/supabase.js?v=1"></script>
     <!-- Main Logic Script -->
-    <script src="db.js?v=4"></script>
-    <script src="email.js?v=4"></script>
-    <script src="messages.js?v=1"></script>
-    <script src="app.js?v=4"></script>
+    <script src="/db.js?v=4"></script>
+    <script src="/email.js?v=4"></script>
+    <script src="/app.js?v=4"></script>
 </body>
 
 </html>

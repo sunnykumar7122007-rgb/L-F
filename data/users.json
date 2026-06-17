@@ -6,17 +6,17 @@
     "name": "Sunny Kumar (Admin)"
   },
   {
-    "name": "Alex Mercer",
-    "email": "user@campus.edu",
+    "name": "Rishu Kumar",
+    "email": "rishukumar25308@gmail.com",
     "password": "Password123!",
     "role": "user",
-    "createdAt": "2026-06-15T07:26:12.264Z"
+    "createdAt": "2026-06-17T06:39:02.715Z"
   },
   {
-    "name": "Sunny kumar",
+    "name": "Sunny Kumar",
     "email": "sunny2024cse@gmail.com",
     "password": "Password123!",
     "role": "user",
-    "createdAt": "2026-06-15T09:03:00.818Z"
+    "createdAt": "2026-06-17T06:55:44.725Z"
   }
 ]
