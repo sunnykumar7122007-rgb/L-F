@@ -7,6 +7,12 @@ const app = express();
 const PORT = process.env.PORT || 8081;
 
 // Middleware
+// Log incoming requests so you can see UptimeRobot pings in Render logs
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 app.use(express.json({ limit: '10mb' })); // support large payloads for compressed base64 images
 app.use(express.static(path.join(__dirname)));
 

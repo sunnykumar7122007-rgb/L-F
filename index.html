@@ -179,6 +179,10 @@ if (location.protocol === 'file:') {
                         <span>Messages</span>
                         <span class="msg-badge" id="msg-badge" style="display: none;">0</span>
                     </button>
+                    <button class="nav-btn" id="nav-profile" onclick="switchTab('profile')">
+                        <i class="fa-regular fa-id-badge"></i>
+                        <span>My Profile</span>
+                    </button>
                     <button class="nav-btn admin-only" id="nav-admin" onclick="switchTab('admin')"
                         style="display: none;">
                         <i class="fa-solid fa-screwdriver-wrench"></i>
@@ -496,9 +500,12 @@ if (location.protocol === 'file:') {
                                 <button class="chat-back-btn" onclick="closeChatPanel()">
                                     <i class="fa-solid fa-arrow-left"></i>
                                 </button>
-                                <div class="chat-header-info">
-                                    <h4 id="chat-partner-name">User Name</h4>
-                                    <span id="chat-item-context" class="chat-context-tag">Re: Item Name</span>
+                                <div class="chat-header-info" style="display: flex; align-items: center; gap: 12px;">
+                                    <div id="chat-header-avatar" class="conv-avatar" style="width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: bold; background-color: var(--primary-light); color: white;"></div>
+                                    <div>
+                                        <h4 id="chat-partner-name">User Name</h4>
+                                        <span id="chat-item-context" class="chat-context-tag">Report: Item Name</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="chat-messages" id="chat-messages">
@@ -517,6 +524,88 @@ if (location.protocol === 'file:') {
                                     <i class="fa-solid fa-paper-plane"></i>
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= TAB CONTENT: USER PROFILE ================= -->
+                <section id="tab-profile" class="tab-content">
+                    <div class="card form-card">
+                        <div class="form-header">
+                            <h2><i class="fa-regular fa-id-badge color-accent"></i> My Profile</h2>
+                            <p>Customize your campus identity. Your avatar will be visible on your reports and messages.</p>
+                        </div>
+                        
+                        <div class="profile-container">
+                            <div class="current-avatar-preview">
+                                <div class="avatar avatar-large" id="profile-avatar-preview"></div>
+                                <h3 id="profile-user-name" style="margin-top: 1rem; color: var(--text-dark);">Name</h3>
+                                <p id="profile-user-email" style="color: var(--text-muted); font-size: 0.9rem;">email@example.com</p>
+                            </div>
+                            
+                            <div class="avatar-options-section">
+                                <h3 style="margin-bottom: 0.5rem; color: var(--text-dark); font-size: 1.1rem;">Choose an Avatar</h3>
+                                <div class="avatar-preset-grid" id="avatar-preset-grid">
+                                    <div class="avatar-preset" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Felix');" onclick="selectPresetAvatar('https://api.dicebear.com/7.x/avataaars/svg?seed=Felix')"></div>
+                                    <div class="avatar-preset" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka');" onclick="selectPresetAvatar('https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka')"></div>
+                                    <div class="avatar-preset" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Jude');" onclick="selectPresetAvatar('https://api.dicebear.com/7.x/avataaars/svg?seed=Jude')"></div>
+                                    <div class="avatar-preset" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Liliana');" onclick="selectPresetAvatar('https://api.dicebear.com/7.x/avataaars/svg?seed=Liliana')"></div>
+                                    <div class="avatar-preset" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver');" onclick="selectPresetAvatar('https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver')"></div>
+                                    <div class="avatar-preset" style="background-image: url('https://api.dicebear.com/7.x/avataaars/svg?seed=Zoey');" onclick="selectPresetAvatar('https://api.dicebear.com/7.x/avataaars/svg?seed=Zoey')"></div>
+                                </div>
+                                
+                                <div class="divider" style="margin: 1.5rem 0; display: flex; align-items: center; text-align: center; color: var(--text-muted);">
+                                    <span style="flex: 1; border-bottom: 1px solid var(--border-color);"></span>
+                                    <span style="padding: 0 10px; font-size: 0.85rem; font-weight: 600;">OR</span>
+                                    <span style="flex: 1; border-bottom: 1px solid var(--border-color);"></span>
+                                </div>
+                                
+                                <h3 style="margin-bottom: 0.5rem; color: var(--text-dark); font-size: 1.1rem;">Upload Custom Picture</h3>
+                                <div class="upload-dropzone avatar-upload-zone" id="avatar-upload-zone" style="min-height: 120px; padding: 1.5rem;">
+                                    <input type="file" id="profile-image-input" accept="image/jpeg, image/png, image/webp" style="display: none;" onchange="handleProfileImageSelection(event)">
+                                    <div class="dropzone-prompt" onclick="document.getElementById('profile-image-input').click()">
+                                        <i class="fa-solid fa-cloud-arrow-up cloud-icon"></i>
+                                        <p style="margin-top: 0.5rem;">Click to browse (Max 2MB)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="profile-academic-info" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                            <h3 style="margin-bottom: 1rem; color: var(--text-dark); font-size: 1.1rem;"><i class="fa-solid fa-graduation-cap color-accent"></i> Academic & Contact Information</h3>
+                            
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="profile-phone"><i class="fa-solid fa-phone"></i> Phone Number</label>
+                                    <div style="display: flex; gap: 12px;">
+                                        <select id="profile-phone-code" class="form-control" style="flex: 0 0 110px; cursor: pointer;">
+                                            <option value="+1">🇺🇸 +1</option>
+                                            <option value="+44">🇬🇧 +44</option>
+                                            <option value="+91" selected>🇮🇳 +91</option>
+                                            <option value="+61">🇦🇺 +61</option>
+                                            <option value="+81">🇯🇵 +81</option>
+                                            <option value="+86">🇨🇳 +86</option>
+                                            <option value="+49">🇩🇪 +49</option>
+                                        </select>
+                                        <input type="tel" id="profile-phone" placeholder="9876543210" class="form-control" style="flex: 1;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="profile-reg-no"><i class="fa-solid fa-hashtag"></i> Registration No</label>
+                                    <input type="text" id="profile-reg-no" placeholder="e.g. 120XXXXXXXX" class="form-control">
+                                </div>
+                                <div class="form-group" style="grid-column: 1 / -1;">
+                                    <label for="profile-branch"><i class="fa-solid fa-building-columns"></i> Branch / Department</label>
+                                    <input type="text" id="profile-branch" placeholder="e.g. Computer Science Engineering" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                            <button type="button" class="btn btn-primary" onclick="saveProfileChanges()" style="width: 100%;">
+                                <span>Save Changes</span>
+                                <i class="fa-solid fa-check"></i>
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -679,7 +768,10 @@ if (location.protocol === 'file:') {
                                 <span>Reporter Information</span>
                             </div>
                             <div class="contact-body">
-                                <p><span>Name:</span> <span id="modal-item-contact-name">John Doe</span></p>
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                    <div id="modal-item-contact-avatar" class="conv-avatar" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: bold; background-color: var(--primary-light); color: white;"></div>
+                                    <p style="margin: 0;"><span>Name:</span> <span id="modal-item-contact-name">John Doe</span></p>
+                                </div>
                                 <p><span>Details:</span> <span id="modal-item-contact-details">+1 (555)
                                         019-2834</span></p>
                             </div>
@@ -712,6 +804,23 @@ if (location.protocol === 'file:') {
             </div>
             <div class="contacts-list" id="contacts-list">
                 <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Avatar Viewer Modal -->
+    <div id="avatar-viewer-modal" class="modal" onclick="closeAvatarViewer()">
+        <div class="modal-content" style="max-width: 400px; padding: 30px; text-align: center; border-radius: 16px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.5);" onclick="event.stopPropagation()">
+            <span class="close-modal" onclick="closeAvatarViewer()" style="top: 15px; right: 15px;"><i class="fa-solid fa-xmark"></i></span>
+            <div id="avatar-viewer-img" style="width: 150px; height: 150px; margin: 0 auto 15px; border-radius: 50%; background-size: cover; background-position: center; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 4px solid white; background-color: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: white; font-weight: bold;"></div>
+            <h3 id="avatar-viewer-name" style="margin-bottom: 5px; font-weight: 700; color: var(--text-dark); font-size: 1.4rem;">User Name</h3>
+            <p id="avatar-viewer-email" style="color: var(--primary-color); font-size: 0.9rem; margin-bottom: 5px;">email@example.com</p>
+            <p id="avatar-viewer-role" style="color: var(--text-muted); font-size: 0.9rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;">Role</p>
+            
+            <div id="avatar-viewer-details" style="text-align: left; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 12px; font-size: 0.95rem;">
+                <div style="margin-bottom: 8px;"><i class="fa-solid fa-building-columns" style="width: 20px; color: var(--text-muted);"></i> <strong style="color: var(--text-dark);">Branch:</strong> <span id="avatar-viewer-branch" style="color: var(--text-muted);">N/A</span></div>
+                <div style="margin-bottom: 8px;"><i class="fa-solid fa-hashtag" style="width: 20px; color: var(--text-muted);"></i> <strong style="color: var(--text-dark);">Reg No:</strong> <span id="avatar-viewer-regno" style="color: var(--text-muted);">N/A</span></div>
+                <div><i class="fa-solid fa-phone" style="width: 20px; color: var(--text-muted);"></i> <strong style="color: var(--text-dark);">Phone:</strong> <span id="avatar-viewer-phone" style="color: var(--text-muted);">N/A</span></div>
             </div>
         </div>
     </div>

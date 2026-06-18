@@ -371,7 +371,7 @@ function showMainView() {
     // Setup Sidebar User Info
     document.getElementById("user-display-name").textContent = currentUser.name;
     document.getElementById("user-display-role").textContent = currentUser.role === 'admin' ? 'Administrator' : 'Student';
-    document.getElementById("user-avatar-initials").textContent = getInitials(currentUser.name);
+    updateUserAvatarUI();
     
     // Toggle Admin sidebar navigation
     const adminNavs = document.querySelectorAll(".admin-only");
@@ -783,6 +783,10 @@ function switchTab(tabName) {
         title.textContent = "Messages";
         desc.textContent = "Connect with campus members regarding reported items";
         renderMessages();
+    } else if (tabName === 'profile') {
+        title.textContent = "My Profile";
+        desc.textContent = "Customize your campus identity";
+        renderProfile();
     }
     
     // Scroll content panel to top
@@ -1127,6 +1131,12 @@ function renderDashboard() {
                 badgeText = "FOUND";
             }
             
+            const reporterUser = users.find(u => u.email === item.reporterEmail);
+            let reporterAvatarHTML = `<div class="card-reporter-avatar" style="cursor: pointer;" onclick="openAvatarViewer('${item.reporterEmail}', event)">${getInitials(item.reporterName)}</div>`;
+            if (reporterUser && reporterUser.avatar) {
+                reporterAvatarHTML = `<div class="card-reporter-avatar" style="background-image: url('${reporterUser.avatar}'); color: transparent; cursor: pointer;" onclick="openAvatarViewer('${reporterUser.email}', event)"></div>`;
+            }
+            
             card.innerHTML = `
                 <div class="card-image-wrapper">
                     <span class="card-badge ${badgeClass}">${badgeText}</span>
@@ -1139,13 +1149,18 @@ function renderDashboard() {
                     </div>
                     <p class="card-desc">${item.description}</p>
                     <div class="card-footer">
-                        <div class="card-info-item">
+                        <div class="card-info-item" style="margin-bottom: 4px;">
                             <i class="fa-solid fa-location-dot"></i>
                             <span>${item.location}</span>
                         </div>
-                        <div class="card-info-item">
-                            <i class="fa-solid fa-calendar-days"></i>
-                            <span>${item.date}</span>
+                        <div class="card-info-item" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-calendar-days"></i>
+                                <span>${item.date}</span>
+                            </div>
+                            <div title="Reported by ${item.reporterName}" style="display: flex; align-items: center;">
+                                ${reporterAvatarHTML}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1189,6 +1204,12 @@ function renderMyReports() {
                 badgeText = "FOUND";
             }
             
+            const reporterUser = currentUser; // Since it's 'my reports'
+            let reporterAvatarHTML = `<div class="card-reporter-avatar" style="cursor: pointer;" onclick="openAvatarViewer('${reporterUser.email}', event)">${getInitials(reporterUser.name)}</div>`;
+            if (reporterUser.avatar) {
+                reporterAvatarHTML = `<div class="card-reporter-avatar" style="background-image: url('${reporterUser.avatar}'); color: transparent; cursor: pointer;" onclick="openAvatarViewer('${reporterUser.email}', event)"></div>`;
+            }
+            
             card.innerHTML = `
                 <div class="card-image-wrapper">
                     <span class="card-badge ${badgeClass}">${badgeText}</span>
@@ -1196,7 +1217,10 @@ function renderMyReports() {
                     <span class="card-category">${item.category}</span>
                 </div>
                 <div class="card-content">
-                    <h4 class="card-title">${item.title}</h4>
+                    <div class="card-header-row" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <h4 class="card-title">${item.title}</h4>
+                        ${reporterAvatarHTML}
+                    </div>
                     <p class="card-desc">${item.description}</p>
                     <div class="card-footer">
                         <div class="card-info-item">
@@ -1284,6 +1308,11 @@ function renderAdminConsole() {
             row.onclick = () => openDetailModal(item.id);
             row.style.cursor = "pointer";
             
+            const reporterUser = users.find(u => u.email === item.reporterEmail);
+            const avatarStyle = reporterUser && reporterUser.avatar 
+                ? `background-image: url('${reporterUser.avatar}'); background-size: cover; background-position: center; color: transparent;`
+                : `background: var(--primary-light); color: white;`;
+            
             row.innerHTML = `
                 <td>
                     <div class="table-item-cell">
@@ -1295,9 +1324,12 @@ function renderAdminConsole() {
                     </div>
                 </td>
                 <td>
-                    <div class="reporter-cell">
-                        <h5>${item.reporterName}</h5>
-                        <span>${item.reporterEmail}</span>
+                    <div class="reporter-cell" style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; flex-shrink: 0; cursor: pointer; ${avatarStyle}" onclick="openAvatarViewer('${item.reporterEmail}', event)">${getInitials(item.reporterName)}</div>
+                        <div>
+                            <h5 style="margin: 0; font-size: 0.9rem;">${item.reporterName}</h5>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">${item.reporterEmail}</span>
+                        </div>
                     </div>
                 </td>
                 <td>${item.date}</td>
@@ -1514,7 +1546,7 @@ function renderAdminUsers() {
         row.innerHTML = `
             <td>
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <div style="width:32px;height:32px;border-radius:50%;background:${u.role === 'admin' ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.08)'};display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:${u.role === 'admin' ? 'var(--primary-light)' : 'var(--text-muted)'};flex-shrink:0;">${getInitials(u.name)}</div>
+                    <div style="width:32px;height:32px;border-radius:50%;background:${u.avatar ? `url('${u.avatar}')` : (u.role === 'admin' ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.08)')}; background-size: cover; background-position: center; display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:${u.avatar ? 'transparent' : (u.role === 'admin' ? 'var(--primary-light)' : 'var(--text-muted)')};flex-shrink:0; cursor: pointer;" onclick="openAvatarViewer('${u.email}', event)">${getInitials(u.name)}</div>
                     <span>${u.name}</span>
                 </div>
             </td>
@@ -1547,6 +1579,19 @@ function openDetailModal(itemId) {
     document.getElementById("modal-item-location").textContent = item.location;
     document.getElementById("modal-item-contact-name").textContent = item.reporterName;
     document.getElementById("modal-item-contact-details").textContent = item.contactDetails;
+    
+    const reporterUser = users.find(u => u.email === item.reporterEmail);
+    const modalAvatar = document.getElementById("modal-item-contact-avatar");
+    modalAvatar.style.cursor = "pointer";
+    modalAvatar.onclick = (e) => openAvatarViewer(item.reporterEmail, e);
+    
+    if (reporterUser && reporterUser.avatar) {
+        modalAvatar.style.backgroundImage = `url('${reporterUser.avatar}')`;
+        modalAvatar.textContent = "";
+    } else {
+        modalAvatar.style.backgroundImage = "none";
+        modalAvatar.textContent = getInitials(item.reporterName);
+    }
     
     // Image loading
     document.getElementById("modal-item-image").src = item.image;
@@ -1956,14 +2001,22 @@ function renderMessages() {
             const partnerEmail = c.participants.find(p => p !== currentUser.email);
             const partner = users.find(u => u.email === partnerEmail) || { name: partnerEmail };
             
+            let avatarHTML = `<div class="conv-avatar" style="width: 32px; height: 32px; border-radius: 50%; background-color: var(--primary-light); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: bold; cursor: pointer;" onclick="openAvatarViewer('${partner.email}', event)">${getInitials(partner.name)}</div>`;
+            if (partner.avatar) {
+                avatarHTML = `<div class="conv-avatar" style="width: 32px; height: 32px; border-radius: 50%; background-image: url('${partner.avatar}'); color: transparent; background-size: cover; background-position: center; cursor: pointer;" onclick="openAvatarViewer('${partner.email}', event)"></div>`;
+            }
+            
             const lastMsg = c.messages.length > 0 ? c.messages[c.messages.length - 1].text : "No messages yet";
             const activeClass = activeConversationId === c.id ? "active" : "";
             
             return `
                 <div class="conversation-card ${activeClass}" onclick="openConversation('${c.id}')">
-                    <div class="conv-info-top">
-                        <span class="conv-partner">${partner.name}</span>
-                        <span class="conv-item" title="${c.itemTitle}">Re: ${c.itemTitle}</span>
+                    <div class="conv-info-top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            ${avatarHTML}
+                            <span class="conv-partner">${partner.name}</span>
+                        </div>
+                        <span class="conv-item" title="${c.itemTitle}">Report: ${c.itemTitle}</span>
                     </div>
                     <div class="conv-last-msg">${lastMsg}</div>
                 </div>
@@ -2004,14 +2057,34 @@ function renderActiveChat() {
     const partner = users.find(u => u.email === partnerEmail) || { name: partnerEmail };
     
     document.getElementById("chat-partner-name").textContent = partner.name;
-    document.getElementById("chat-item-context").textContent = `Re: ${conv.itemTitle}`;
+    document.getElementById("chat-item-context").textContent = `Report: ${conv.itemTitle}`;
+    
+    const headerAvatar = document.getElementById("chat-header-avatar");
+    headerAvatar.style.cursor = "pointer";
+    headerAvatar.onclick = (e) => openAvatarViewer(partner.email, e);
+    
+    if (partner.avatar) {
+        headerAvatar.style.backgroundImage = `url('${partner.avatar}')`;
+        headerAvatar.style.backgroundSize = "cover";
+        headerAvatar.style.backgroundPosition = "center";
+        headerAvatar.textContent = "";
+    } else {
+        headerAvatar.style.backgroundImage = "none";
+        headerAvatar.textContent = getInitials(partner.name);
+    }
     
     const messagesContainer = document.getElementById("chat-messages");
     const currentMessagesCount = conv.messages.length;
     
     const newMessagesHTML = conv.messages.map(msg => {
         const sideClass = msg.from === currentUser.email ? "sent" : "received";
-        const formattedTime = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const formattedTime = formatMessageTime(msg.timestamp);
+        
+        const msgUser = users.find(u => u.email === msg.from) || { name: msg.fromName };
+        let avatarStyle = `background: var(--primary-light); color: white;`;
+        if (msgUser.avatar) {
+            avatarStyle = `background-image: url('${msgUser.avatar}'); background-size: cover; background-position: center; color: transparent;`;
+        }
         
         let mediaHTML = "";
         if (msg.mediaUrl) {
@@ -2025,10 +2098,13 @@ function renderActiveChat() {
         const textHTML = msg.text ? `<span class="chat-bubble-text">${msg.text}</span>` : "";
         
         return `
-            <div class="chat-bubble ${sideClass}">
-                ${mediaHTML}
-                ${textHTML}
-                <span class="chat-bubble-time">${formattedTime}</span>
+            <div class="chat-bubble-wrapper ${sideClass}" style="display: flex; align-items: flex-end; gap: 8px; margin-bottom: 12px; ${sideClass === 'sent' ? 'flex-direction: row-reverse;' : ''}">
+                <div class="msg-avatar" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: bold; flex-shrink: 0; cursor: pointer; ${avatarStyle}" onclick="openAvatarViewer('${msgUser.email}', event)">${getInitials(msgUser.name)}</div>
+                <div class="chat-bubble ${sideClass}" style="margin-bottom: 0;">
+                    ${mediaHTML}
+                    ${textHTML}
+                    <span class="chat-bubble-time">${formattedTime}</span>
+                </div>
             </div>
         `;
     }).join('');
@@ -2487,9 +2563,14 @@ function renderContactsList(query) {
             actionBtn = `<button class="contact-action" onclick="startDirectMessage('${u.email}')">Message</button>`;
         }
 
+        let avatarStyle = '';
+        if (u.avatar) {
+            avatarStyle = `style="background-image: url('${u.avatar}'); color: transparent; background-size: cover; background-position: center;"`;
+        }
+
         return `
             <div class="contact-item" id="contact-item-${u.email.replace(/[@.]/g, '_')}">
-                <div class="${avatarClass}">${initials}</div>
+                <div class="${avatarClass}" ${avatarStyle} style="cursor: pointer;" onclick="openAvatarViewer('${u.email}', event)">${initials}</div>
                 <div class="contact-info">
                     <div class="contact-name">${u.name}</div>
                     <div class="contact-email">${u.email}</div>
@@ -2579,3 +2660,220 @@ function acceptInvitationFromContacts(invId) {
     renderContactsList(_contactsSearchQuery);
 }
 
+// ================= PROFILE CONTROLLER =================
+let selectedAvatarUrl = null;
+let selectedAvatarFile = null;
+
+function renderProfile() {
+    document.getElementById('profile-user-name').textContent = currentUser.name;
+    document.getElementById('profile-user-email').textContent = currentUser.email;
+    
+    if (currentUser.phone) {
+        const parts = currentUser.phone.split(' ');
+        if (parts.length > 1 && parts[0].startsWith('+')) {
+            document.getElementById('profile-phone-code').value = parts[0];
+            document.getElementById('profile-phone').value = parts.slice(1).join(' ');
+        } else {
+            document.getElementById('profile-phone').value = currentUser.phone;
+        }
+    } else {
+        document.getElementById('profile-phone').value = '';
+    }
+    
+    document.getElementById('profile-reg-no').value = currentUser.registrationNo || '';
+    document.getElementById('profile-branch').value = currentUser.branch || '';
+    
+    const preview = document.getElementById('profile-avatar-preview');
+    if (currentUser.avatar) {
+        preview.style.backgroundImage = `url('${currentUser.avatar}')`;
+        preview.textContent = "";
+        selectedAvatarUrl = currentUser.avatar;
+    } else {
+        preview.style.backgroundImage = 'none';
+        preview.textContent = getInitials(currentUser.name);
+        selectedAvatarUrl = null;
+    }
+    
+    // Highlight preset if it matches
+    document.querySelectorAll('.avatar-preset').forEach(el => {
+        if (selectedAvatarUrl && el.style.backgroundImage.includes(selectedAvatarUrl)) {
+            el.classList.add('selected');
+        } else {
+            el.classList.remove('selected');
+        }
+    });
+}
+
+function selectPresetAvatar(url) {
+    selectedAvatarUrl = url;
+    selectedAvatarFile = null;
+    const preview = document.getElementById('profile-avatar-preview');
+    preview.style.backgroundImage = `url('${url}')`;
+    preview.textContent = "";
+    
+    document.querySelectorAll('.avatar-preset').forEach(el => {
+        el.classList.remove('selected');
+        if (el.style.backgroundImage.includes(url)) {
+            el.classList.add('selected');
+        }
+    });
+}
+
+function handleProfileImageSelection(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Compress logic
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 400;
+            const MAX_HEIGHT = 400;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            canvas.toBlob(blob => {
+                selectedAvatarFile = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+                selectedAvatarUrl = URL.createObjectURL(blob);
+                
+                const preview = document.getElementById('profile-avatar-preview');
+                preview.style.backgroundImage = `url('${selectedAvatarUrl}')`;
+                preview.textContent = "";
+                
+                document.querySelectorAll('.avatar-preset').forEach(el => el.classList.remove('selected'));
+            }, 'image/jpeg', 0.8);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function saveProfileChanges() {
+    const btn = document.querySelector("#tab-profile .btn-primary");
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Saving...</span>';
+    btn.disabled = true;
+
+    try {
+        if (selectedAvatarFile) {
+            if (typeof supabaseDB !== 'undefined' && supabaseDB.isReady) {
+                const path = `${currentUser.email.replace(/[@.]/g, '_')}_${Date.now()}.jpg`;
+                const publicUrl = await supabaseDB.uploadAvatar(selectedAvatarFile, path);
+                currentUser.avatar = publicUrl;
+            } else {
+                showToast("Supabase connection required for image upload.", "error");
+                throw new Error("Supabase not connected");
+            }
+        } else if (selectedAvatarUrl) {
+            currentUser.avatar = selectedAvatarUrl;
+        } else {
+            delete currentUser.avatar;
+        }
+        
+        const phoneCodeVal = document.getElementById('profile-phone-code').value;
+        const phoneVal = document.getElementById('profile-phone').value.trim();
+        currentUser.phone = phoneVal ? `${phoneCodeVal} ${phoneVal}` : '';
+        
+        currentUser.registrationNo = document.getElementById('profile-reg-no').value.trim();
+        currentUser.branch = document.getElementById('profile-branch').value.trim();
+        
+        const userIndex = users.findIndex(u => u.email === currentUser.email);
+        if (userIndex !== -1) {
+            if (currentUser.avatar) {
+                users[userIndex].avatar = currentUser.avatar;
+            } else {
+                delete users[userIndex].avatar;
+            }
+            users[userIndex].phone = currentUser.phone;
+            users[userIndex].registrationNo = currentUser.registrationNo;
+            users[userIndex].branch = currentUser.branch;
+        }
+        
+        await saveUser(currentUser);
+        
+        showToast("Profile updated successfully!", "success");
+        if (localStorage.getItem("lf_session")) {
+            localStorage.setItem("lf_session", JSON.stringify(currentUser));
+        } else if (sessionStorage.getItem("lf_session")) {
+            sessionStorage.setItem("lf_session", JSON.stringify(currentUser));
+        }
+        updateUserAvatarUI();
+        
+        // Refresh tabs if open
+        const activeTab = document.querySelector('.tab-content.active-tab');
+        if (activeTab && activeTab.id === 'tab-dashboard') renderDashboard();
+        if (activeTab && activeTab.id === 'tab-my-reports') renderMyReports();
+        if (activeTab && activeTab.id === 'tab-messages') renderMessages();
+        
+    } catch(e) {
+        console.error(e);
+        showToast("Failed to save profile changes.", "error");
+    } finally {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+        selectedAvatarFile = null;
+    }
+}
+
+function updateUserAvatarUI() {
+    const avatarEl = document.getElementById("user-avatar-initials");
+    if (currentUser.avatar) {
+        avatarEl.style.backgroundImage = `url('${currentUser.avatar}')`;
+        avatarEl.textContent = "";
+    } else {
+        avatarEl.style.backgroundImage = 'none';
+        avatarEl.textContent = getInitials(currentUser.name);
+    }
+}
+
+// ================= AVATAR VIEWER =================
+function openAvatarViewer(email, event) {
+    if (event) event.stopPropagation(); // prevent triggering other clicks like openConversation
+    
+    const user = users.find(u => u.email === email);
+    if (!user) return;
+    
+    const viewerImg = document.getElementById('avatar-viewer-img');
+    if (user.avatar) {
+        viewerImg.style.backgroundImage = `url('${user.avatar}')`;
+        viewerImg.textContent = "";
+    } else {
+        viewerImg.style.backgroundImage = 'none';
+        viewerImg.textContent = getInitials(user.name);
+    }
+    
+    document.getElementById('avatar-viewer-name').textContent = user.name;
+    document.getElementById('avatar-viewer-email').textContent = user.email;
+    document.getElementById('avatar-viewer-role').textContent = user.role === 'admin' ? 'Admin' : 'Student / Staff';
+    
+    document.getElementById('avatar-viewer-branch').textContent = user.branch || 'N/A';
+    document.getElementById('avatar-viewer-regno').textContent = user.registrationNo || 'N/A';
+    document.getElementById('avatar-viewer-phone').textContent = user.phone || 'N/A';
+    
+    const modal = document.getElementById('avatar-viewer-modal');
+    modal.classList.add('active');
+}
+
+function closeAvatarViewer() {
+    const modal = document.getElementById('avatar-viewer-modal');
+    modal.classList.remove('active');
+}

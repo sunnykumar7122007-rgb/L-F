@@ -59,16 +59,20 @@ const supabaseDB = {
         const client = _getClient();
         const { data, error } = await client
             .from('users')
-            .select('email, name, role, suspended, created_at')
+            .select('email, name, role, suspended, avatar, phone, registration_no, branch, created_at')
             .order('created_at', { ascending: true });
         if (error) throw error;
         // Normalise snake_case → camelCase for the app layer
         return (data || []).map(u => ({
-            email:     u.email,
-            name:      u.name,
-            role:      u.role,
-            suspended: u.suspended,
-            createdAt: u.created_at
+            email:          u.email,
+            name:           u.name,
+            role:           u.role,
+            suspended:      u.suspended,
+            avatar:         u.avatar,
+            phone:          u.phone,
+            registrationNo: u.registration_no,
+            branch:         u.branch,
+            createdAt:      u.created_at
         }));
     },
 
@@ -79,10 +83,14 @@ const supabaseDB = {
     async put(user) {
         const client = _getClient();
         const record = {
-            email:     user.email,
-            name:      user.name,
-            role:      user.role      || 'user',
-            suspended: user.suspended || false
+            email:           user.email,
+            name:            user.name,
+            role:            user.role      || 'user',
+            suspended:       user.suspended || false,
+            avatar:          user.avatar    || null,
+            phone:           user.phone     || null,
+            registration_no: user.registrationNo || null,
+            branch:          user.branch    || null
             // password intentionally excluded
         };
         const { error } = await client
@@ -117,11 +125,29 @@ const supabaseDB = {
             .upload(`${path}/${file.name}`, file, { upsert: true });
         if (error) throw error;
         // Get public URL
-        const { publicURL, error: urlError } = client.storage
+        const { data: urlData } = client.storage
             .from('messages')
             .getPublicUrl(`${path}/${file.name}`);
-        if (urlError) throw urlError;
-        return publicURL;
+        return urlData.publicUrl;
+    },
+
+    /**
+     * Upload an avatar image to Supabase storage.
+     * @param {File|Blob} file - The file to upload.
+     * @param {string} fileName - Destination path/name.
+     * @returns {Promise<string>} - Public URL of the uploaded file.
+     */
+    async uploadAvatar(file, fileName) {
+        const client = _getClient();
+        const { data, error } = await client.storage
+            .from('avatars')
+            .upload(fileName, file, { upsert: true, cacheControl: '3600' });
+        if (error) throw error;
+        
+        const { data: urlData } = client.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+        return urlData.publicUrl;
     },
 
     /**

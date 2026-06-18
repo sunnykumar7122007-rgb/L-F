@@ -640,6 +640,8 @@ textarea:focus {
     font-weight: 700;
     font-size: 1.1rem;
     box-shadow: 0 3px 10px rgba(139, 92, 246, 0.25);
+    background-size: cover;
+    background-position: center;
 }
 
 .user-status-dot {
@@ -3187,3 +3189,84 @@ body.light-mode .chat-audio {
     outline: none;
 }
 
+/* ================= PROFILE TAB STYLES ================= */
+.profile-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    margin-top: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .profile-container {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+}
+
+.current-avatar-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 250px;
+    padding: 2rem;
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+}
+
+.avatar-large {
+    width: 120px;
+    height: 120px;
+    font-size: 3rem;
+    box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
+}
+
+.avatar-options-section {
+    flex: 2;
+}
+
+.avatar-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.avatar-preset {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: transform 0.2s, border-color 0.2s;
+    background-color: #f1f5f9;
+}
+
+.avatar-preset:hover {
+    transform: scale(1.1);
+}
+
+.avatar-preset.selected {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+}
+
+.card-reporter-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--primary-light);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: bold;
+    margin-right: 6px;
+}
