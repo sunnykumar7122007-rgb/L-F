@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs/promises');
 const fsSync = require('fs');
 const path = require('path');
+const turso = require('./turso');
 
 const app = express();
 const PORT = process.env.PORT || 8081;
@@ -16,49 +17,9 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '10mb' })); // support large payloads for compressed base64 images
 app.use(express.static(path.join(__dirname)));
 
-const DATA_DIR = path.join(__dirname, 'data');
-
-// Ensure data directory exists
-if (!fsSync.existsSync(DATA_DIR)) {
-    fsSync.mkdirSync(DATA_DIR);
-}
-
-// Helper to get filepath for a store
-function getStoreFilePath(storeName) {
-    return path.join(DATA_DIR, `${storeName}.json`);
-}
-
 // Helper to get key path name for a store
 function getKeyName(storeName) {
     return storeName === 'users' ? 'email' : 'id';
-}
-
-// Helper to read data from a store
-async function readStore(storeName) {
-    const filePath = getStoreFilePath(storeName);
-    try {
-        const data = await fs.readFile(filePath, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return [];
-        }
-        console.error(`Error reading store ${storeName}:`, error);
-        throw error;
-    }
-}
-
-// Helper to write data to a store
-async function writeStore(storeName, data) {
-    const filePath = getStoreFilePath(storeName);
-    const tempPath = `${filePath}.tmp`;
-    try {
-        await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
-        await fs.rename(tempPath, filePath);
-    } catch (error) {
-        console.error(`Error writing store ${storeName}:`, error);
-        throw error;
-    }
 }
 
 // API Routes
@@ -67,9 +28,14 @@ async function writeStore(storeName, data) {
 app.get('/api/:storeName', async (req, res) => {
     const { storeName } = req.params;
     try {
-        const data = await readStore(storeName);
+        const result = await turso.execute({
+            sql: 'SELECT data FROM document_store WHERE store_name = ?',
+            args: [storeName]
+        });
+        const data = result.rows.map(row => JSON.parse(row.data));
         res.json(data);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: `Failed to read ${storeName}` });
     }
 });
@@ -86,18 +52,13 @@ app.post('/api/:storeName', async (req, res) => {
     }
 
     try {
-        const data = await readStore(storeName);
-        const index = data.findIndex(item => item[keyName] === recordKey);
-
-        if (index > -1) {
-            data[index] = record; // update
-        } else {
-            data.push(record); // create
-        }
-
-        await writeStore(storeName, data);
+        await turso.execute({
+            sql: 'INSERT OR REPLACE INTO document_store (store_name, record_key, data) VALUES (?, ?, ?)',
+            args: [storeName, String(recordKey), JSON.stringify(record)]
+        });
         res.json(record);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: `Failed to save record to ${storeName}` });
     }
 });
@@ -113,23 +74,18 @@ app.post('/api/:storeName/batch', async (req, res) => {
     }
 
     try {
-        const data = await readStore(storeName);
-        
-        records.forEach(newRecord => {
+        for (const newRecord of records) {
             const newKey = newRecord[keyName];
             if (newKey) {
-                const index = data.findIndex(item => item[keyName] === newKey);
-                if (index > -1) {
-                    data[index] = newRecord;
-                } else {
-                    data.push(newRecord);
-                }
+                await turso.execute({
+                    sql: 'INSERT OR REPLACE INTO document_store (store_name, record_key, data) VALUES (?, ?, ?)',
+                    args: [storeName, String(newKey), JSON.stringify(newRecord)]
+                });
             }
-        });
-
-        await writeStore(storeName, data);
+        }
         res.json({ success: true, count: records.length });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: `Failed to perform batch update in ${storeName}` });
     }
 });
@@ -137,19 +93,20 @@ app.post('/api/:storeName/batch', async (req, res) => {
 // Delete a record from a store by key
 app.delete('/api/:storeName/:key', async (req, res) => {
     const { storeName, key } = req.params;
-    const keyName = getKeyName(storeName);
 
     try {
-        const data = await readStore(storeName);
-        const filtered = data.filter(item => String(item[keyName]) !== String(key));
+        const result = await turso.execute({
+            sql: 'DELETE FROM document_store WHERE store_name = ? AND record_key = ?',
+            args: [storeName, String(key)]
+        });
 
-        if (data.length === filtered.length) {
+        if (result.rowsAffected === 0) {
             return res.status(404).json({ error: `Record with key ${key} not found in ${storeName}` });
         }
 
-        await writeStore(storeName, filtered);
         res.json({ success: true });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: `Failed to delete record from ${storeName}` });
     }
 });
@@ -158,9 +115,13 @@ app.delete('/api/:storeName/:key', async (req, res) => {
 app.post('/api/:storeName/clear', async (req, res) => {
     const { storeName } = req.params;
     try {
-        await writeStore(storeName, []);
+        await turso.execute({
+            sql: 'DELETE FROM document_store WHERE store_name = ?',
+            args: [storeName]
+        });
         res.json({ success: true });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: `Failed to clear store ${storeName}` });
     }
 });

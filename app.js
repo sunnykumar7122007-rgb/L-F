@@ -18,83 +18,7 @@ const DEFAULT_USERS = [
     }
 ];
 
-const DEFAULT_ITEMS = [
-    {
-        id: "mock-1",
-        title: "Space Gray MacBook Air M2",
-        type: "lost",
-        category: "Electronics",
-        location: "Library 3rd Floor study desks",
-        date: "2026-06-08",
-        description: "MacBook Air with a sticker of Octocat on the lid. Left it on the corner study desks around 4:00 PM.",
-        image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80",
-        reporterName: "Alex Mercer",
-        reporterEmail: "user@campus.edu",
-        contactDetails: "+1 (555) 302-9844",
-        status: "active", // active, pending, resolved
-        createdAt: new Date("2026-06-08T16:30:00").getTime()
-    },
-    {
-        id: "mock-2",
-        title: "Keys on Tan Leather Keyring",
-        type: "found",
-        category: "Keys & Wallets",
-        location: "Campus Cafeteria near register",
-        date: "2026-06-09",
-        description: "Found a set of 3 keys with a tan leather strap and a tiny silver globe keychain on the cafeteria counter.",
-        image: "https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=600&q=80",
-        reporterName: "Sunny Kumar (Admin)",
-        reporterEmail: "sunnykumar7122007@gmail.com",
-        contactDetails: "Main Office - Admin Block A",
-        status: "active",
-        createdAt: new Date("2026-06-09T10:15:00").getTime()
-    },
-    {
-        id: "mock-3",
-        title: "Black Herschel Backpack",
-        type: "lost",
-        category: "Bags & Backpacks",
-        location: "Sports Complex locker area",
-        date: "2026-06-07",
-        description: "Black classic Herschel backpack. Has a red interior. Contains a blue spiral notebook and a purple pencil case.",
-        image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=600&q=80",
-        reporterName: "Alex Mercer",
-        reporterEmail: "user@campus.edu",
-        contactDetails: "alex.m@campus.edu",
-        status: "active",
-        createdAt: new Date("2026-06-07T18:00:00").getTime()
-    },
-    {
-        id: "mock-4",
-        title: "Calculus Textbook (11th Edition)",
-        type: "found",
-        category: "Books & Stationery",
-        location: "Block B Room 302",
-        date: "2026-06-08",
-        description: "Calculus: Early Transcendentals textbook left under desk 14. The name 'Sarah' is written inside the front cover.",
-        image: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=600&q=80",
-        reporterName: "Sunny Kumar (Admin)",
-        reporterEmail: "sunnykumar7122007@gmail.com",
-        contactDetails: "Contact Admin Office desk",
-        status: "active",
-        createdAt: new Date("2026-06-08T11:00:00").getTime()
-    },
-    {
-        id: "mock-5",
-        title: "Leather Wallet (Brown)",
-        type: "lost",
-        category: "Keys & Wallets",
-        location: "Science Lab 4",
-        date: "2026-06-09",
-        description: "Brown bi-fold Fossil wallet. Contains campus ID card and metro card. Reward offered for safe return!",
-        image: "https://images.unsplash.com/photo-1627124765135-56530125585b?auto=format&fit=crop&w=600&q=80",
-        reporterName: "Sarah Connor",
-        reporterEmail: "sarah.c@campus.edu",
-        contactDetails: "Please call +1 (555) 901-2283",
-        status: "pending", // Starts as pending to show how admin approvals work!
-        createdAt: new Date("2026-06-09T12:00:00").getTime()
-    }
-];
+const DEFAULT_ITEMS = [];
 
 // Global Application State
 let currentUser = null;
@@ -111,10 +35,6 @@ async function saveUser(user) {
         await dbManager.put("users", user);
     }
     localStorage.setItem("lf_users", JSON.stringify(users));
-    // Sync profile (no password) to Supabase cloud
-    if (typeof supabaseDB !== 'undefined' && supabaseDB.isReady) {
-        supabaseDB.put(user).catch(e => console.error('[Supabase] saveUser sync error:', e));
-    }
 }
 
 async function saveItem(item) {
@@ -194,85 +114,7 @@ async function initDatabaseData() {
     localStorage.setItem("lf_conversations", JSON.stringify(conversations));
 }
 
-// ================= SUPABASE CLOUD SYNC =================
-
-/**
- * Merges Supabase user records into the local users array.
- * - Remote-only users are added locally (role/status preserved, no password).
- * - Local-only users are pushed up to Supabase.
- * - Remote role/suspended values win on conflict (admin edits persist across devices).
- */
-async function syncUsersFromSupabase() {
-    try {
-        const remoteUsers = await supabaseDB.getAll();
-        let changed = false;
-
-        // Pull: apply remote users into local store
-        for (const remote of remoteUsers) {
-            const local = users.find(u => u.email === remote.email);
-            if (!local) {
-                // New user from another device / direct DB insert
-                users.push({
-                    email:     remote.email,
-                    name:      remote.name,
-                    password:  '', // no password from cloud — local auth only
-                    role:      remote.role,
-                    suspended: remote.suspended,
-                    createdAt: remote.createdAt
-                });
-                changed = true;
-            } else {
-                // Sync role/suspended from cloud (admin changes persist)
-                if (local.role !== remote.role || local.suspended !== remote.suspended) {
-                    local.role = remote.role;
-                    local.suspended = remote.suspended;
-                    changed = true;
-                }
-                // Backfill createdAt if missing locally
-                if (!local.createdAt && remote.createdAt) {
-                    local.createdAt = remote.createdAt;
-                    changed = true;
-                }
-            }
-        }
-
-        // Push: upload local users not yet in Supabase
-        for (const local of users) {
-            const inRemote = remoteUsers.find(r => r.email === local.email);
-            if (!inRemote) {
-                supabaseDB.put(local).catch(e => console.error('[Supabase] push error:', e));
-            }
-        }
-
-        if (changed) {
-            localStorage.setItem('lf_users', JSON.stringify(users));
-            // Refresh User Details panel if currently open
-            const activeTab = document.querySelector('.tab-content.active-tab');
-            if (activeTab && activeTab.id === 'tab-admin-users') renderAdminUsers();
-        }
-
-        updateSupabaseSyncBadge(true);
-        console.log('[Supabase] User sync complete. Remote:', remoteUsers.length, '| Local:', users.length);
-    } catch (err) {
-        console.error('[Supabase] Sync failed:', err);
-        updateSupabaseSyncBadge(false);
-    }
-}
-
-/**
- * Updates the sync status badge shown in the User Details admin panel.
- */
-function updateSupabaseSyncBadge(isConnected) {
-    const badge = document.getElementById('supabase-sync-badge');
-    if (!badge) return;
-    if (isConnected) {
-        badge.innerHTML = '<i class="fa-solid fa-circle" style="color:#10b981;font-size:0.55rem;"></i> Synced with Supabase';
-        badge.className = 'sync-badge sync-online';
-    } else {
-        badge.innerHTML = '<i class="fa-solid fa-circle" style="color:#f43f5e;font-size:0.55rem;"></i> Local Only';
-        badge.className = 'sync-badge sync-offline';
-    }
-}
+// Supabase Sync removed
 
 // ================= LIFECYCLE & ROUTING =================
 document.addEventListener("DOMContentLoaded", async () => {
@@ -291,11 +133,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         conversations = JSON.parse(localStorage.getItem("lf_conversations")) || [];
     }
     
-    // Initialize Supabase and sync user accounts (non-blocking — app continues regardless)
-    supabaseDB.init().then(ready => {
-        updateSupabaseSyncBadge(ready);
-        if (ready) syncUsersFromSupabase();
-    });
+
 
     checkSession();
     setupDragAndDrop();
@@ -795,13 +633,20 @@ function switchTab(tabName) {
 
 // ================= STATS CONTROLLER =================
 function updateStats() {
-    const total = items.length;
+    // Only count items that are approved (active or resolved) for the total dashboard stats
+    const visibleItems = items.filter(i => i.status === 'active' || i.status === 'resolved');
+    const total = visibleItems.length;
+    
     const activeLost = items.filter(i => i.type === 'lost' && i.status === 'active').length;
     const activeFound = items.filter(i => i.type === 'found' && i.status === 'active').length;
     
-    document.getElementById("stat-total").textContent = total;
-    document.getElementById("stat-lost").textContent = activeLost;
-    document.getElementById("stat-found").textContent = activeFound;
+    const statTotalEl = document.getElementById("stat-total");
+    const statLostEl = document.getElementById("stat-lost");
+    const statFoundEl = document.getElementById("stat-found");
+    
+    if (statTotalEl) statTotalEl.textContent = total;
+    if (statLostEl) statLostEl.textContent = activeLost;
+    if (statFoundEl) statFoundEl.textContent = activeFound;
 }
 
 // ================= IMAGE COMPRESSION & UPLOAD =================
@@ -2006,7 +1851,15 @@ function renderMessages() {
                 avatarHTML = `<div class="conv-avatar" style="width: 32px; height: 32px; border-radius: 50%; background-image: url('${partner.avatar}'); color: transparent; background-size: cover; background-position: center; cursor: pointer;" onclick="openAvatarViewer('${partner.email}', event)"></div>`;
             }
             
-            const lastMsg = c.messages.length > 0 ? c.messages[c.messages.length - 1].text : "No messages yet";
+            let lastMsg = "No messages yet";
+            const visibleMessages = c.messages.filter(m => !(m.deletedFor && m.deletedFor.includes(currentUser.email)));
+            if (visibleMessages.length > 0) {
+                const m = visibleMessages[visibleMessages.length - 1];
+                if (m.deleted) lastMsg = "🚫 Message deleted";
+                else if (m.text) lastMsg = m.text;
+                else if (m.mediaType === 'image') lastMsg = "📷 Image";
+                else if (m.mediaType === 'voice') lastMsg = "🎤 Voice Message";
+            }
             const activeClass = activeConversationId === c.id ? "active" : "";
             
             return `
@@ -2049,6 +1902,13 @@ function closeChatPanel() {
 
 let lastActiveConvId = null;
 
+function formatMessageTime(timestamp) {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 function renderActiveChat() {
     const conv = conversations.find(c => c.id === activeConversationId);
     if (!conv) return;
@@ -2074,40 +1934,64 @@ function renderActiveChat() {
     }
     
     const messagesContainer = document.getElementById("chat-messages");
+    if (!conv.messages) conv.messages = [];
     const currentMessagesCount = conv.messages.length;
     
-    const newMessagesHTML = conv.messages.map(msg => {
-        const sideClass = msg.from === currentUser.email ? "sent" : "received";
-        const formattedTime = formatMessageTime(msg.timestamp);
-        
-        const msgUser = users.find(u => u.email === msg.from) || { name: msg.fromName };
-        let avatarStyle = `background: var(--primary-light); color: white;`;
-        if (msgUser.avatar) {
-            avatarStyle = `background-image: url('${msgUser.avatar}'); background-size: cover; background-position: center; color: transparent;`;
+    let newMessagesHTML = "";
+    try {
+        const visibleMessagesCount = conv.messages.filter(m => !(m.deletedFor && m.deletedFor.includes(currentUser.email))).length;
+        if (visibleMessagesCount === 0) {
+            newMessagesHTML = `<div style="text-align:center; padding: 40px; color: var(--text-muted); font-size: 14px;">No messages yet. Say hi!</div>`;
+        } else {
+            newMessagesHTML = conv.messages.map((msg, idx) => {
+                if (msg.deletedFor && msg.deletedFor.includes(currentUser.email)) return "";
+                try {
+                    const sideClass = msg.from === currentUser.email ? "sent" : "received";
+                    const formattedTime = formatMessageTime(msg.timestamp);
+                    
+                    const msgUser = users.find(u => u.email === msg.from) || { name: msg.fromName || "Unknown" };
+                    let avatarStyle = `background: var(--primary-light); color: white;`;
+                    if (msgUser.avatar) {
+                        avatarStyle = `background-image: url('${msgUser.avatar}'); background-size: cover; background-position: center; color: transparent;`;
+                    }
+                    
+                    let mediaHTML = "";
+                    let textHTML = "";
+                    let deleteBtnHTML = "";
+
+                    if (msg.deleted) {
+                        const deleteText = sideClass === 'sent' ? "You deleted this message" : "This message was deleted";
+                        textHTML = `<span class="deleted-message"><i class="fa-solid fa-ban"></i> ${deleteText}</span>`;
+                    } else {
+                        if (msg.mediaUrl) {
+                            if (msg.mediaType === 'image') {
+                                mediaHTML = `<div class="chat-bubble-media"><img src="${msg.mediaUrl}" class="chat-image" alt="Image" onclick="window.open(this.src, '_blank')"/></div>`;
+                            } else if (msg.mediaType === 'voice') {
+                                mediaHTML = `<div class="chat-bubble-media"><audio controls src="${msg.mediaUrl}" class="chat-audio"></audio></div>`;
+                            }
+                        }
+                        textHTML = msg.text ? `<span class="chat-bubble-text">${msg.text}</span>` : "";
+                        deleteBtnHTML = `<button class="msg-delete-btn" onclick="deleteMessage('${conv.id}', ${msg.timestamp})" title="Delete message"><i class="fa-solid fa-trash"></i></button>`;
+                    }
+                    
+                    return `
+                        <div class="chat-bubble-wrapper ${sideClass}" style="display: flex; align-items: flex-end; gap: 8px; margin-bottom: 12px; ${sideClass === 'sent' ? 'flex-direction: row-reverse;' : ''}">
+                            <div class="msg-avatar" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: bold; flex-shrink: 0; cursor: pointer; ${avatarStyle}" onclick="openAvatarViewer('${msgUser.email || ''}', event)">${getInitials(msgUser.name)}</div>
+                            <div class="chat-bubble ${sideClass}" style="margin-bottom: 0;">
+                                ${mediaHTML}
+                                ${textHTML}
+                                <span class="chat-bubble-time">${deleteBtnHTML} ${formattedTime}</span>
+                            </div>
+                        </div>
+                    `;
+                } catch (err) {
+                    return `<div style="color:red; font-size:12px;">Error mapping msg ${idx}: ${err.message}</div>`;
+                }
+            }).join('');
         }
-        
-        let mediaHTML = "";
-        if (msg.mediaUrl) {
-            if (msg.mediaType === 'image') {
-                mediaHTML = `<div class="chat-bubble-media"><img src="${msg.mediaUrl}" class="chat-image" alt="Image" onclick="window.open(this.src, '_blank')"/></div>`;
-            } else if (msg.mediaType === 'voice') {
-                mediaHTML = `<div class="chat-bubble-media"><audio controls src="${msg.mediaUrl}" class="chat-audio"></audio></div>`;
-            }
-        }
-        
-        const textHTML = msg.text ? `<span class="chat-bubble-text">${msg.text}</span>` : "";
-        
-        return `
-            <div class="chat-bubble-wrapper ${sideClass}" style="display: flex; align-items: flex-end; gap: 8px; margin-bottom: 12px; ${sideClass === 'sent' ? 'flex-direction: row-reverse;' : ''}">
-                <div class="msg-avatar" style="width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: bold; flex-shrink: 0; cursor: pointer; ${avatarStyle}" onclick="openAvatarViewer('${msgUser.email}', event)">${getInitials(msgUser.name)}</div>
-                <div class="chat-bubble ${sideClass}" style="margin-bottom: 0;">
-                    ${mediaHTML}
-                    ${textHTML}
-                    <span class="chat-bubble-time">${formattedTime}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
+    } catch (outerErr) {
+        newMessagesHTML = `<div style="color:red; font-size:14px; font-weight:bold; padding:20px;">Fatal Error: ${outerErr.message}<br/>${outerErr.stack}</div>`;
+    }
     
     if (messagesContainer.innerHTML !== newMessagesHTML) {
         messagesContainer.innerHTML = newMessagesHTML;
@@ -2137,14 +2021,99 @@ function sendMessage() {
         timestamp: Date.now()
     };
     
+    if (!conversations[convIndex].messages) {
+        conversations[convIndex].messages = [];
+    }
     conversations[convIndex].messages.push(newMessage);
-    activeChatLastMsgCount = conversations[convIndex].messages.length;
     saveConversation(conversations[convIndex]).catch(e => console.error(e));
     
     input.value = "";
     renderActiveChat();
     renderMessages();
 }
+
+let messageToDelete = null;
+
+function deleteMessage(convId, timestamp) {
+    messageToDelete = { convId, timestamp };
+    const convIndex = conversations.findIndex(c => c.id === convId);
+    if (convIndex === -1) return;
+    
+    const msg = conversations[convIndex].messages.find(m => m.timestamp === timestamp);
+    if (!msg) return;
+    
+    const timeDiff = Date.now() - msg.timestamp;
+    const isWithin30Mins = timeDiff <= 30 * 60 * 1000;
+    const isSentByMe = msg.from === currentUser.email;
+    
+    const btnEveryone = document.getElementById('btn-delete-everyone');
+    if (isWithin30Mins && !msg.deleted && isSentByMe) {
+        btnEveryone.style.display = "block";
+    } else {
+        btnEveryone.style.display = "none";
+    }
+    
+    document.getElementById('delete-msg-modal').style.display = "flex";
+}
+
+function clearChat() {
+    if (!activeConversationId) return;
+    if (!confirm("Are you sure you want to clear this entire chat for yourself? The other person will still see the messages.")) return;
+    
+    const convIndex = conversations.findIndex(c => c.id === activeConversationId);
+    if (convIndex === -1) return;
+    
+    const conv = conversations[convIndex];
+    if (conv.messages) {
+        conv.messages.forEach(msg => {
+            if (!msg.deletedFor) msg.deletedFor = [];
+            if (!msg.deletedFor.includes(currentUser.email)) {
+                msg.deletedFor.push(currentUser.email);
+            }
+        });
+        saveConversation(conv).catch(e => console.error(e));
+        renderActiveChat();
+        renderMessages();
+    }
+}
+
+document.getElementById('btn-delete-everyone').onclick = () => {
+    if (!messageToDelete) return;
+    const { convId, timestamp } = messageToDelete;
+    const convIndex = conversations.findIndex(c => c.id === convId);
+    if (convIndex === -1) return;
+    
+    const msg = conversations[convIndex].messages.find(m => m.timestamp === timestamp && m.from === currentUser.email);
+    if (msg) {
+        msg.deleted = true;
+        msg.text = "";
+        msg.mediaUrl = "";
+        msg.mediaType = "";
+        saveConversation(conversations[convIndex]).catch(e => console.error(e));
+        renderActiveChat();
+        renderMessages();
+    }
+    document.getElementById('delete-msg-modal').style.display = "none";
+};
+
+document.getElementById('btn-delete-me').onclick = () => {
+    if (!messageToDelete) return;
+    const { convId, timestamp } = messageToDelete;
+    const convIndex = conversations.findIndex(c => c.id === convId);
+    if (convIndex === -1) return;
+    
+    const msg = conversations[convIndex].messages.find(m => m.timestamp === timestamp);
+    if (msg) {
+        if (!msg.deletedFor) msg.deletedFor = [];
+        if (!msg.deletedFor.includes(currentUser.email)) {
+            msg.deletedFor.push(currentUser.email);
+        }
+        saveConversation(conversations[convIndex]).catch(e => console.error(e));
+        renderActiveChat();
+        renderMessages();
+    }
+    document.getElementById('delete-msg-modal').style.display = "none";
+};
 
 // Hidden input handlers for chat media
 function handleChatImageSelection(event) {
@@ -2275,8 +2244,10 @@ function sendMediaMessage(mediaUrl, mediaType) {
         timestamp: Date.now()
     };
     
+    if (!conversations[convIndex].messages) {
+        conversations[convIndex].messages = [];
+    }
     conversations[convIndex].messages.push(newMessage);
-    activeChatLastMsgCount = conversations[convIndex].messages.length;
     saveConversation(conversations[convIndex]).catch(e => console.error(e));
     
     renderActiveChat();
