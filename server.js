@@ -69,9 +69,9 @@ app.post('/api/:storeName', async (req, res) => {
     try {
         if (storeName === 'users') {
             await turso.execute({
-                sql: `INSERT OR REPLACE INTO users (email, password, role, name, avatar, phone, registrationNo, branch, createdAt)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                args: [record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt]
+                sql: `INSERT OR REPLACE INTO users (email, password, role, name, avatar, phone, registrationNo, branch, createdAt, sessionToken)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt, record.sessionToken]
             });
         } else if (storeName === 'items') {
             await turso.execute({
@@ -114,9 +114,9 @@ app.post('/api/:storeName/batch', async (req, res) => {
         for (const record of records) {
             if (storeName === 'users') {
                 await turso.execute({
-                    sql: `INSERT OR REPLACE INTO users (email, password, role, name, avatar, phone, registrationNo, branch, createdAt)
-                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    args: [record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt]
+                    sql: `INSERT OR REPLACE INTO users (email, password, role, name, avatar, phone, registrationNo, branch, createdAt, sessionToken)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    args: [record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt, record.sessionToken]
                 });
             } else if (storeName === 'items') {
                 await turso.execute({

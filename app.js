@@ -472,6 +472,11 @@ async function handleLogin(event) {
             showToast("Your account has been suspended by an Administrator.", "error");
             return;
         }
+        
+        // Generate a new unique session token
+        matchedUser.sessionToken = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        saveUser(matchedUser).catch(e => console.error("Failed to save sessionToken", e));
+
         currentUser = matchedUser;
         
         if (rememberMe) {
@@ -2288,6 +2293,10 @@ function startDataPolling() {
                     return; // exit polling loop immediately
                 } else if (activeMe.suspended) {
                     showToast("Your account has been suspended by an Administrator.", "error");
+                    handleLogout();
+                    return; // exit polling loop immediately
+                } else if (activeMe.sessionToken && currentUser.sessionToken && activeMe.sessionToken !== currentUser.sessionToken) {
+                    showToast("Session expired because you logged in from another browser.", "error");
                     handleLogout();
                     return;
                 } else if (activeMe.role !== currentUser.role) {
