@@ -1321,13 +1321,6 @@ function adminDeleteUser(email) {
             dbManager.delete("users", email).catch(e => console.error(e));
         }
         localStorage.setItem("lf_users", JSON.stringify(users));
-        // Delete from Supabase cloud
-        if (supabaseDB.isReady) {
-            supabaseDB.delete(email).catch(e => {
-                console.error('[Supabase] delete error:', e);
-                showToast("Warning: Failed to delete user from Supabase. They might be restored on next sync.", "warning");
-            });
-        }
         showToast("Account permanently removed from system database.", "error");
         
         const activeTab = document.querySelector(".tab-content.active-tab").id;
@@ -2746,14 +2739,13 @@ async function saveProfileChanges() {
 
     try {
         if (selectedAvatarFile) {
-            if (typeof supabaseDB !== 'undefined' && supabaseDB.isReady) {
-                const path = `${currentUser.email.replace(/[@.]/g, '_')}_${Date.now()}.jpg`;
-                const publicUrl = await supabaseDB.uploadAvatar(selectedAvatarFile, path);
-                currentUser.avatar = publicUrl;
-            } else {
-                showToast("Supabase connection required for image upload.", "error");
-                throw new Error("Supabase not connected");
-            }
+            const reader = new FileReader();
+            const base64Avatar = await new Promise((resolve, reject) => {
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(selectedAvatarFile);
+            });
+            currentUser.avatar = base64Avatar;
         } else if (selectedAvatarUrl) {
             currentUser.avatar = selectedAvatarUrl;
         } else {
