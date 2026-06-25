@@ -24,6 +24,11 @@ function safeParse(str, defaultVal) {
     }
 }
 
+// Helper to convert undefined to null for Turso SQL args
+function toArgs(arr) {
+    return arr.map(v => v === undefined ? null : v);
+}
+
 // API Routes
 
 // Get all items in a store
@@ -71,25 +76,25 @@ app.post('/api/:storeName', async (req, res) => {
             await turso.execute({
                 sql: `INSERT OR REPLACE INTO users (email, password, role, name, avatar, phone, registrationNo, branch, createdAt, sessionToken)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                args: [record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt, record.sessionToken]
+                args: toArgs([record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt, record.sessionToken])
             });
         } else if (storeName === 'items') {
             await turso.execute({
                 sql: `INSERT OR REPLACE INTO items (id, title, type, category, location, date, description, image, reporterName, reporterEmail, contactDetails, status, createdAt)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                args: [record.id, record.title, record.type, record.category, record.location, record.date, record.description, record.image, record.reporterName, record.reporterEmail, record.contactDetails, record.status, record.createdAt]
+                args: toArgs([record.id, record.title, record.type, record.category, record.location, record.date, record.description, record.image, record.reporterName, record.reporterEmail, record.contactDetails, record.status, record.createdAt])
             });
         } else if (storeName === 'chat_invitations') {
             await turso.execute({
                 sql: `INSERT OR REPLACE INTO chat_invitations (id, fromEmail, fromName, toEmail, toName, itemId, itemTitle, status, createdAt)
                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                args: [record.id, record.fromEmail, record.fromName, record.toEmail, record.toName, record.itemId, record.itemTitle, record.status, record.createdAt]
+                args: toArgs([record.id, record.fromEmail, record.fromName, record.toEmail, record.toName, record.itemId, record.itemTitle, record.status, record.createdAt])
             });
         } else if (storeName === 'conversations') {
             await turso.execute({
                 sql: `INSERT OR REPLACE INTO conversations (id, participants, itemId, itemTitle, messages, createdAt)
                       VALUES (?, ?, ?, ?, ?, ?)`,
-                args: [record.id, JSON.stringify(record.participants || []), record.itemId, record.itemTitle, JSON.stringify(record.messages || []), record.createdAt]
+                args: toArgs([record.id, JSON.stringify(record.participants || []), record.itemId, record.itemTitle, JSON.stringify(record.messages || []), record.createdAt])
             });
         } else {
             return res.status(400).json({ error: `Unknown store: ${storeName}` });
@@ -116,25 +121,25 @@ app.post('/api/:storeName/batch', async (req, res) => {
                 await turso.execute({
                     sql: `INSERT OR REPLACE INTO users (email, password, role, name, avatar, phone, registrationNo, branch, createdAt, sessionToken)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    args: [record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt, record.sessionToken]
+                    args: toArgs([record.email, record.password, record.role, record.name, record.avatar, record.phone, record.registrationNo, record.branch, record.createdAt, record.sessionToken])
                 });
             } else if (storeName === 'items') {
                 await turso.execute({
                     sql: `INSERT OR REPLACE INTO items (id, title, type, category, location, date, description, image, reporterName, reporterEmail, contactDetails, status, createdAt)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    args: [record.id, record.title, record.type, record.category, record.location, record.date, record.description, record.image, record.reporterName, record.reporterEmail, record.contactDetails, record.status, record.createdAt]
+                    args: toArgs([record.id, record.title, record.type, record.category, record.location, record.date, record.description, record.image, record.reporterName, record.reporterEmail, record.contactDetails, record.status, record.createdAt])
                 });
             } else if (storeName === 'chat_invitations') {
                 await turso.execute({
                     sql: `INSERT OR REPLACE INTO chat_invitations (id, fromEmail, fromName, toEmail, toName, itemId, itemTitle, status, createdAt)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    args: [record.id, record.fromEmail, record.fromName, record.toEmail, record.toName, record.itemId, record.itemTitle, record.status, record.createdAt]
+                    args: toArgs([record.id, record.fromEmail, record.fromName, record.toEmail, record.toName, record.itemId, record.itemTitle, record.status, record.createdAt])
                 });
             } else if (storeName === 'conversations') {
                 await turso.execute({
                     sql: `INSERT OR REPLACE INTO conversations (id, participants, itemId, itemTitle, messages, createdAt)
                           VALUES (?, ?, ?, ?, ?, ?)`,
-                    args: [record.id, JSON.stringify(record.participants || []), record.itemId, record.itemTitle, JSON.stringify(record.messages || []), record.createdAt]
+                    args: toArgs([record.id, JSON.stringify(record.participants || []), record.itemId, record.itemTitle, JSON.stringify(record.messages || []), record.createdAt])
                 });
             }
         }
